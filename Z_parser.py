@@ -123,9 +123,13 @@ atomic_mass_dictionary = {
 	"*":	{"mass": 13.53277}, 
  
 	"TIP":  {"mass": 18},
-	"HOH":  {"mass": 16}
-
-
+	"HOH":  {"mass": 16},
+ 
+	"DNAP": {"mass": 30.97376},
+	"DNAO": {"mass": 15.9994},
+	"DNAC": {"mass": 12.011},
+	"DNAN": {"mass": 14.0067}
+ 
 }
 
 
@@ -158,7 +162,9 @@ try:
 			if line.startswith('ATOM') or line.startswith('HETATM'):
             
             	#only A conformations for LYS , ARG etc
-				if (line[16] == 'A' or line[16] == ' ') and (line[13:21] != 'H1  TIP3') and (line[13:21] != 'H2  TIP3'):
+				if ( ( line[16] == 'A' or line[16] == ' ') and 
+				     (line[13:21] != 'H1  TIP3') and 
+       			     (line[13:21] != 'H2  TIP3') ):
 
 					#creates a variable from the column of atom type
 					atom = line[0:3]
@@ -192,10 +198,27 @@ try:
 					if residue == "TIP":
 						element_type.append("TIP")
       
-					#if non-water element defined in 1 char in element column
+					# for DNA molecules
+					elif (residue == " DA"):
+						if (element_id[0] == ' '):
+							element_type.append("DNA" + element_id[1].upper())
+          
+					elif (residue == " DT"): 
+						if (element_id[0] == ' '):
+							element_type.append("DNA" + element_id[1].upper())
+					
+					elif (residue == " DG"):
+						if (element_id[0] == ' '):
+							element_type.append("DNA" + element_id[1].upper())
+					
+					elif (residue == " DC"):
+						if (element_id[0] == ' '):
+							element_type.append("DNA" + element_id[1].upper())
+      
+					#if non-water non-DNA element defined in 1 char in element column
 					elif (element_id[0] == ' '):
 						element_type.append(element_id[1].upper())
-                	#if non-water element defined in 2 chars
+                	#if non-water non-DNA element defined in 2 chars
 					elif (element_id[0] != ' '):
 						element_type.append(element_id[0:2].upper())
       
@@ -225,7 +248,11 @@ try:
 	#which is the same as the counted x coordinates that we use
 	for i in range(len(atom_type)):
     
-		if( (atom_type[i] != "HET") and (cryst_water_type[i] != "HOH") and (element_type[i] != "TIP") and (atomic_mass_dictionary[element_type[i]]["mass"] > 12) ):
+		if( (atom_type[i] != "HET") and 
+     		(cryst_water_type[i] != "HOH") and 
+       		(element_type[i] != "TIP") and
+			(element_type[i][0:3] != "DNA") and
+         	(atomic_mass_dictionary[element_type[i]]["mass"] > 12) ):
             
        		#set count variable to 0 for the current atom i
 			count = 0
@@ -234,7 +261,9 @@ try:
 			for j in range(len(atom_type)):
         
         		#counts the distance between atom i and atom j
-				distance = (  math.sqrt(  (( x[i] - x[j] ) * ( x[i] - x[j])) + (( y[i] - y[j] ) * ( y[i] - y[j] )) + (( z[i] - z[j] ) * ( z[i] - z[j] ))  )  )
+				distance = (  math.sqrt(  (( x[i] - x[j] ) * ( x[i] - x[j])) + 
+                            			  (( y[i] - y[j] ) * ( y[i] - y[j] )) + 
+                            		      (( z[i] - z[j] ) * ( z[i] - z[j] ))  )  )
         				
 				#call the corresponding element id from its list
 				element_id = element_type[j] 
