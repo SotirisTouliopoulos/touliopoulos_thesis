@@ -123,7 +123,7 @@ atomic_mass_dictionary = {
 	"*":	{"mass": 13.53277}, 
  
 	"TIP":  {"mass": 18},
-	"HOH":  {"mass": 16},
+	"HOH":  {"mass": 18},
  
 	"DNAP": {"mass": 30.97376},
 	"DNAO": {"mass": 15.9994},
@@ -136,8 +136,6 @@ atomic_mass_dictionary = {
 
 #create an empty list to store atom type
 atom_type = []
-
-cryst_water_type = []
 
 #create an empty list to store x coordinates
 x = []
@@ -161,12 +159,13 @@ try:
 
         	#only for lines starting with 'ATOM'
 			if line.startswith('ATOM') or line.startswith('HETATM'):
-            
+                        
             	#only A conformations for LYS , ARG etc
 				if ( ( line[16] == 'A' or line[16] == ' ') and 
-				     (line[13:21] != 'H1  TIP3') and 
-       			     (line[13:21] != 'H2  TIP3') ):
-
+				     ( line[13:21] != 'H1  TIP3') and 
+       			     ( line[13:21] != 'H2  TIP3') and
+					 ( line[17:20] != "HOH" or line[77] != "H") ):
+                
 					#creates a variable from the column of atom type
 					atom = line[0:3]
 					#appends it to a list
@@ -192,29 +191,26 @@ try:
                  	
 					#creates a variable from the column of residue/solvent type
 					residue = line[17:20]                  
-					cryst_water_type.append(residue)
-            
-					
+            					
  					#if water molecule defined in residue columns
 					if residue == "TIP":
 						element_type.append("TIP")
       
+					elif residue == "HOH":
+						element_type.append("HOH")
+      
 					# for DNA molecules
-					elif (residue == " DA"):
-						if (element_id[0] == ' '):
-							element_type.append("DNA" + element_id[1].upper())
+					elif (residue == "DA "):
+						element_type.append("DNA" + element_id[1].upper())
           
-					elif (residue == " DT"): 
-						if (element_id[0] == ' '):
-							element_type.append("DNA" + element_id[1].upper())
+					elif (residue == "DT "): 
+						element_type.append("DNA" + element_id[1].upper())
 					
-					elif (residue == " DG"):
-						if (element_id[0] == ' '):
-							element_type.append("DNA" + element_id[1].upper())
+					elif (residue == "DG "):
+						element_type.append("DNA" + element_id[1].upper())
 					
-					elif (residue == " DC"):
-						if (element_id[0] == ' '):
-							element_type.append("DNA" + element_id[1].upper())
+					elif (residue == "DC "):
+						element_type.append("DNA" + element_id[1].upper())
       
 					#if non-water non-DNA element defined in 1 char in element column
 					elif (element_id[0] == ' '):
@@ -224,9 +220,6 @@ try:
 						element_type.append(element_id[0:2].upper())
       
       
-      
-
-                
         	#for lines starting with ENDMDL stops the proccess
         	#because the current structure model ends
 			elif line.startswith('ENDMDL') :
@@ -250,7 +243,7 @@ try:
 	for i in range(len(atom_type)):
     
 		if( (atom_type[i] != "HET") and 
-     		(cryst_water_type[i] != "HOH") and 
+     		(element_type[i] != "HOH") and 
        		(element_type[i] != "TIP") and
 			(element_type[i][0:3] != "DNA") and
          	(atomic_mass_dictionary[element_type[i]]["mass"] > 12) ):
