@@ -128,7 +128,8 @@ atomic_mass_dictionary = {
 	"DNAP": {"mass": 30.97376},
 	"DNAO": {"mass": 15.9994},
 	"DNAC": {"mass": 12.011},
-	"DNAN": {"mass": 14.0067}
+	"DNAN": {"mass": 14.0067},
+	"DNAH":	{"mass": 1.00797}
  
 }
 
