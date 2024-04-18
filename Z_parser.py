@@ -192,6 +192,7 @@ try:
 					#creates a variable from the column of residue/solvent type
 					residue = line[17:20]                  
             					
+
  					#if water molecule defined in residue columns
 					if residue == "TIP":
 						element_type.append("TIP")
@@ -199,6 +200,7 @@ try:
 					elif residue == "HOH":
 						element_type.append("HOH")
       
+
 					# for DNA molecules
 					elif (residue == "DA "):
 						element_type.append("DNA" + element_id[1].upper())
@@ -212,6 +214,31 @@ try:
 					elif (residue == "DC "):
 						element_type.append("DNA" + element_id[1].upper())
       
+					elif (residue == "DU "):
+						element_type.append("DNA" + element_id[1].upper())
+      
+					elif (residue == "DI "):
+						element_type.append("DNA" + element_id[1].upper())
+      
+					elif (residue == "I  "):
+						element_type.append("DNA" + element_id[1].upper())
+      
+					elif (residue == "A  "):
+						element_type.append("DNA" + element_id[1].upper())
+      
+					elif (residue == "U  "):
+						element_type.append("DNA" + element_id[1].upper())
+      
+					elif (residue == "C  "):
+						element_type.append("DNA" + element_id[1].upper())
+      
+					elif (residue == "G  "):
+						element_type.append("DNA" + element_id[1].upper())
+      
+					elif (residue == "N  "):
+						element_type.append("DNA" + element_id[1].upper())
+
+
 					#if non-water non-DNA element defined in 1 char in element column
 					elif (element_id[0] == ' '):
 						element_type.append(element_id[1].upper())
