@@ -123,13 +123,15 @@ atomic_mass_dictionary = {
 	"*":	{"mass": 13.53277}, 
  
 	"TIP":  {"mass": 18},
-	"HOH":  {"mass": 18},
  
-	"DNAP": {"mass": 30.97376},
-	"DNAO": {"mass": 15.9994},
-	"DNAC": {"mass": 12.011},
-	"DNAN": {"mass": 14.0067},
-	"DNAH":	{"mass": 1.00797}
+ 	"HOH O":  {"mass": 15.9994},
+	"HOH H":  {"mass": 1.00797},
+  
+	"DNA P": {"mass": 30.97376},
+	"DNA O": {"mass": 15.9994},
+	"DNA C": {"mass": 12.011},
+	"DNA N": {"mass": 14.0067},
+	"DNA H": {"mass": 1.00797}
  
 }
 
@@ -163,8 +165,7 @@ try:
             	#only A conformations for LYS , ARG etc
 				if ( ( line[16] == 'A' or line[16] == ' ') and 
 				     ( line[13:21] != 'H1  TIP3') and 
-       			     ( line[13:21] != 'H2  TIP3') and
-					 ( line[17:20] != "HOH" or line[77] != "H") ):
+       			     ( line[13:21] != 'H2  TIP3') ):
                 
 					#creates a variable from the column of atom type
 					atom = line[0:3]
@@ -190,53 +191,58 @@ try:
 					element_id = line[76:78]
                  	
 					#creates a variable from the column of residue/solvent type
-					residue = line[17:20]                  
-            					
+					residue = line[17:20]
+     
 
- 					#if water molecule defined in residue columns
+ 					#if TIP water molecule defined in residue columns
 					if residue == "TIP":
 						element_type.append("TIP")
       
-					elif residue == "HOH":
-						element_type.append("HOH")
+					#if crystallographic oxygen from water molecule				
+					elif residue == "HOH" and element_id == " O":
+						element_type.append("HOH O")
+
+					#if crystallohraphic/obabel hydrogen from water molecule				
+					elif residue == "HOH" and element_id == " H":
+						element_type.append("HOH H")
       
 
 					# for DNA molecules
 					elif (residue == "DA "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
           
 					elif (residue == "DT "): 
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
 					
 					elif (residue == "DG "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
 					
 					elif (residue == "DC "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
       
 					elif (residue == "DU "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
       
 					elif (residue == "DI "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
       
 					elif (residue == "I  "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
       
 					elif (residue == "A  "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
       
 					elif (residue == "U  "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
       
 					elif (residue == "C  "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
       
 					elif (residue == "G  "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
       
 					elif (residue == "N  "):
-						element_type.append("DNA" + element_id[1].upper())
+						element_type.append("DNA " + element_id[1].upper())
 
 
 					#if non-water non-DNA element defined in 1 char in element column
@@ -270,7 +276,7 @@ try:
 	for i in range(len(atom_type)):
     
 		if( (atom_type[i] != "HET") and 
-     		(element_type[i] != "HOH") and 
+     		(element_type[i][0:3] != "HOH") and 
        		(element_type[i] != "TIP") and
 			(element_type[i][0:3] != "DNA") and
          	(atomic_mass_dictionary[element_type[i]]["mass"] > 12) ):
