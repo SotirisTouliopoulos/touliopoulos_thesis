@@ -7,7 +7,7 @@ import sys
 try:    
     with open(sys.argv[1], 'r') as file:
         for line in file:
-            if line.startswith("MODEL"):
+            if line.startswith("MODEL") or line.startswith("ENDMDL") or line.startswith("END") or line.startswith("TER"):
                 print(line[:-1])
             
             elif line.startswith('ATOM'):
