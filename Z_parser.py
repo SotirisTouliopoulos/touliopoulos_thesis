@@ -252,11 +252,6 @@ try:
 					elif (element_id[0] != ' '):
 						element_type.append(element_id[0:2].upper())
       
-      
-        	#for lines starting with ENDMDL stops the proccess
-        	#because the current structure model ends
-			elif line.startswith('ENDMDL') :
-				break
          
 except:
     print('error in parsing')
