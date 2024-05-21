@@ -158,100 +158,95 @@ try:
     
     	#for every line
 		for line in file:
-
-        	#only for lines starting with 'ATOM'
-			if line.startswith('ATOM') or line.startswith('HETATM'):
                         
-            	#only A conformations for LYS , ARG etc
-				if ( ( line[16] == 'A' or line[16] == ' ') and 
-				     ( line[13:21] != 'H1  TIP3') and 
-       			     ( line[13:21] != 'H2  TIP3') ):
+			if( ( line[13:21] != 'H1  TIP3') and 
+       			( line[13:21] != 'H2  TIP3') ):
                 
-					#creates a variable from the column of atom type
-					atom = line[0:3]
-					#appends it to a list
-					atom_type.append(atom)
+				#creates a variable from the column of atom type
+				atom = line[0:3]
+				#appends it to a list
+				atom_type.append(atom)
                  
-                 	#creates a variable from the column of x coordinate
-					coord_x = line[30:38]
-                	#appends it to a list
-					x.append(float(coord_x))
+                #creates a variable from the column of x coordinate
+				coord_x = line[30:38]
+                #appends it to a list
+				x.append(float(coord_x))
 
-                	#creates a variable from the column of y coordinate
-					coord_y = line[38:46]
-                	#appends it to a list
-					y.append(float(coord_y))
+                #creates a variable from the column of y coordinate
+				coord_y = line[38:46]
+                #appends it to a list
+				y.append(float(coord_y))
 
-                	#creates a variable from the column of z coordinate
-					coord_z = line[46:54]
-                	#apends it to a list
-					z.append(float(coord_z))
+                #creates a variable from the column of z coordinate
+				coord_z = line[46:54]
+                #apends it to a list
+				z.append(float(coord_z))
 
-                	#creates a variable from the column of the element type
-					element_id = line[76:78]
+                #creates a variable from the column of the element type
+				element_id = line[76:78]
                  	
-					#creates a variable from the column of residue/solvent type
-					residue = line[17:20]
+				#creates a variable from the column of residue/solvent type
+				residue = line[17:20]
      
 
- 					#if TIP water molecule defined in residue columns
-					if residue == "TIP":
-						element_type.append("TIP")
+ 				#if TIP water molecule defined in residue columns
+				if residue == "TIP":
+					element_type.append("TIP")
       
-					#if crystallographic oxygen from water molecule				
-					elif residue == "HOH" and element_id == " O":
-						element_type.append("HOH O")
+				#if crystallographic oxygen from water molecule				
+				elif residue == "HOH" and element_id == " O":
+					element_type.append("HOH O")
 
-					#if crystallohraphic/obabel hydrogen from water molecule				
-					elif residue == "HOH" and element_id == " H":
-						element_type.append("HOH H")
+				#if crystallohraphic/obabel hydrogen from water molecule				
+				elif residue == "HOH" and element_id == " H":
+					element_type.append("HOH H")
       
 
-					# for DNA molecules
-					elif (residue == "DA "):
-						element_type.append("DNA " + element_id[1].upper())
+				# for DNA molecules
+				elif (residue == "DA "):
+					element_type.append("DNA " + element_id[1].upper())
           
-					elif (residue == "DT "): 
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "DT "): 
+					element_type.append("DNA " + element_id[1].upper())
 					
-					elif (residue == "DG "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "DG "):
+					element_type.append("DNA " + element_id[1].upper())
 					
-					elif (residue == "DC "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "DC "):
+					element_type.append("DNA " + element_id[1].upper())
       
-					elif (residue == "DU "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "DU "):
+					element_type.append("DNA " + element_id[1].upper())
       
-					elif (residue == "DI "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "DI "):
+					element_type.append("DNA " + element_id[1].upper())
       
-					elif (residue == "I  "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "I  "):
+					element_type.append("DNA " + element_id[1].upper())
       
-					elif (residue == "A  "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "A  "):
+					element_type.append("DNA " + element_id[1].upper())
       
-					elif (residue == "U  "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "U  "):
+					element_type.append("DNA " + element_id[1].upper())
       
-					elif (residue == "C  "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "C  "):
+					element_type.append("DNA " + element_id[1].upper())
       
-					elif (residue == "G  "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "G  "):
+					element_type.append("DNA " + element_id[1].upper())
       
-					elif (residue == "N  "):
-						element_type.append("DNA " + element_id[1].upper())
+				elif (residue == "N  "):
+					element_type.append("DNA " + element_id[1].upper())
 
 
-					#if non-water non-DNA element defined in 1 char in element column
-					elif (element_id[0] == ' '):
-						element_type.append(element_id[1].upper())
-                	#if non-water non-DNA element defined in 2 chars
-					elif (element_id[0] != ' '):
-						element_type.append(element_id[0:2].upper())
-      
+				#if non-water non-DNA element defined in 1 char in element column
+				elif (element_id[0] == ' '):
+					element_type.append(element_id[1].upper())
+                #if non-water non-DNA element defined in 2 chars
+				elif (element_id[0] != ' '):
+					element_type.append(element_id[0:2].upper())
+
          
 except:
     print('error in parsing')
