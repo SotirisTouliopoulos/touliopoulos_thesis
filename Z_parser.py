@@ -159,7 +159,8 @@ try:
     	#for every line
 		for line in file:
                         
-			if( ( line[13:21] != 'H1  TIP3') and 
+			if( ( line.startswith("ATOM") ) and
+      			( line[13:21] != 'H1  TIP3') and 
        			( line[13:21] != 'H2  TIP3') ):
                 
 				#creates a variable from the column of atom type
