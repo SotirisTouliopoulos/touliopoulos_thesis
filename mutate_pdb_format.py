@@ -17,6 +17,9 @@ try:
                 if residue == "HOH":
                     atom_number = line[6:13]
                     print("ATOM ", atom_number, line[14:-1])
+                    
+                else:
+                    print(line[:-1])
         
 except:
     print("error in mutating")            
