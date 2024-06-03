@@ -159,7 +159,7 @@ try:
     	#for every line
 		for line in file:
                         
-			if( ( line.startswith("ATOM") ) and
+			if( ( line.startswith("ATOM") or line.startswith("HETATM") ) and
       			( line[13:21] != 'H1  TIP3') and 
        			( line[13:21] != 'H2  TIP3') ):
                 
