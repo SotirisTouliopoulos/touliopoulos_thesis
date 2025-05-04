@@ -1,0 +1,2267 @@
+---
+title: "Final Year BSc thesis:"
+subtitle: "Atomic density distributions in proteins: structural and functional implications"
+
+author: 
+  - name: "Sotirios Touliopoulos"
+    affiliations: "Department of Molecular Biology & Genetics (DUTh)"
+  - name: "Nicholas M. Glykos"
+    affiliations: "Department of Molecular Biology & Genetics (DUTh)"
+
+code-annotations: true
+
+#format:
+#  docx:
+#    reference-doc: custom-reference-doc.docx    
+format:
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+
+toc: true
+toc-location: left
+toc-depth: 4
+number-sections: true
+#format: html
+editor: visual
+bibliography: references.bib
+---
+
+## R code for distribution analysis
+
+#### Section 1: Scaling Distributions
+
+Atomic density distributions are stored in different directories based on radius and density calculation approaches. Atom count and atomic weight approaches are scaled separately to histograms with same bins and bin limits. We procceed to scatter-plots visualization and analysis with only one computational approach at a time and with all the different radius.
+
+In the following chunk optimal bins from all distributions are computed with the Freedman-Diaconis (FD) rule. Minimum & maximum values from all distributions (combined for all radius) are computed too.
+
+```{r, warning=FALSE , eval=FALSE}
+
+Z_5A = "~/project/ptixiaki/distributions_analysis/R_pipeline/5A/5A"
+
+Ζ_6Α = "~/project/ptixiaki/distributions_analysis/R_pipeline/6A/6A"
+
+Ζ_7Α = "~/project/ptixiaki/distributions_analysis/R_pipeline/7A/7A"
+
+# get a vector with all distribution file names
+distributions_files = c(
+                        list.files(path = Z_5A, 
+                                  recursive = TRUE,
+                                  pattern = ".dist$", 
+                                  full.names = TRUE) ,
+  
+                        list.files(path = Ζ_6Α, 
+                                  recursive = TRUE,
+                                  pattern = ".dist$", 
+                                  full.names = TRUE) ,
+  
+                        list.files(path = Ζ_7Α, 
+                                recursive = TRUE,
+                                pattern = ".dist$", 
+                                full.names = TRUE) )
+
+
+# create empty vector to store all optimal bins
+all_bins = c()
+min_values = c()
+max_values = c()
+
+# iterate through every distribution file
+for (file in distributions_files)
+{
+  # read distribution file
+  distribution = scan( file=file , quiet=T)
+  
+  # find minimum distribution value
+  dist_min = min(distribution)
+  # append to vector
+  min_values = append(min_values, dist_min)
+  
+  # find maximum distribution value
+  dist_max = max(distribution)
+  # append to vector
+  max_values = append(max_values, dist_max)
+  
+  # hist function to gain histogram 
+  hist = hist(distribution, breaks = "FD" , plot=FALSE )
+  # frequencies/bin ==> counts, so length equals the number of bins
+  bins = length(hist$counts)
+  # append to vector
+  all_bins = append(all_bins, bins)
+}
+
+# find maximum value of optimal bins
+max(all_bins)
+hist(all_bins)
+bins = 100
+min_density = min(min_values)
+max_density = max(max_values)
+
+# calculate bin width
+bin_width = ( (max_density - min_density ) / bins )
+# calculate custom breaks
+breaks = seq( min_density , max_density , by=bin_width)
+
+
+write.table(breaks, file="breaks")
+
+
+rm(file,dist_min,min_values,
+   dist_max,max_values,hist)
+
+```
+
+```{r , warning=FALSE , eval=FALSE}
+
+breaks = read.table("breaks")
+breaks = c(breaks$x)
+bins = 100
+
+# set working directory
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A/6A")
+
+distributions_files = list.files(path = ".", 
+                                 recursive = TRUE,
+                                 pattern = ".dist$", 
+                                 full.names = TRUE)
+
+
+# dataframe to store bin frequencies from all distributions
+raw_data = data.frame()
+
+# iterate every file
+for (file in distributions_files)
+{
+  # read distribution file
+  distribution = scan( file=file , quiet=TRUE)
+  # number of atoms
+  atoms = length(distribution)
+  
+  # compute bin frequencies
+  bin_frequencies = as.data.frame( table( cut( distribution, 
+                           breaks=breaks, 
+                           right=TRUE, 
+                           include.lowest = TRUE,
+                           dig.lab = min(nchar(breaks) ) 
+                           ) ) ) 
+  
+  # scale bin frequencies
+  scaled_bin_frequencies = bin_frequencies[,2]/atoms
+  # bind to dataframe
+  raw_data = rbind(raw_data,scaled_bin_frequencies)
+    
+}
+
+# Check scaling outcome by calculating area
+# under every histogram (must be equal to 1)
+histograms_areas = rowSums( raw_data )
+
+rm(file,distribution,atoms,bin_frequencies,scaled_bin_frequencies)
+
+# creation of a vector with pdb ids
+PDBs = c()
+for (i in distributions_files){
+  PDBs = append(PDBs, substr(i,3,6) )
+}
+# we now pass this vector as first column in the dataset
+raw_data = cbind( PDBs , raw_data )
+
+
+# We also create column integer identifiers
+# to name our columns appropriately
+columns = c("PDB_id")
+for (i in 1:bins){
+  columns = append( columns , i )
+}
+colnames(raw_data) = columns
+
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/7A")
+#setwd("~/project/ptixiaki/testing/")
+write.table(raw_data , file="raw_data_7A")
+
+
+rm(columns,i)
+
+```
+
+Now scale distributions in 6A radius from cluster 4 and 6 with atom count
+
+```{r}
+
+
+cluster6_df = read.csv("cluster_6_df")
+cluster4_df = read.csv("cluster_4_df")
+cluster3_df = read.csv("cluster_3_df")
+
+cluster6_ids = cluster6_df$id
+cluster6_files <- paste0(cluster6_ids, ".pdb.water")
+cluster4_ids = cluster4_df$id
+cluster4_files <- paste0(cluster4_ids, ".pdb.water")
+cluster3_ids = cluster3_df$id
+cluster3_files <- paste0(cluster3_ids, ".pdb.water")
+
+
+#solvate_files <- list.files("./solvate_files/")
+
+#file.copy(file.path("./solvate_files/", cluster6_files), "cluster_6_files")
+#file.copy(file.path("./solvate_files/", cluster4_files), "cluster_4_files")
+#file.copy(file.path("./solvate_files/", cluster3_files), "cluster_3_files")
+
+
+cluster_4_6_dist = "~/project/ptixiaki/distributions_analysis/R_pipeline/cluster_4_6_dist"
+
+# get a vector with all distribution file names
+distributions_files = c(
+                        list.files(path = cluster_4_6_dist, 
+                                  recursive = TRUE,
+                                  pattern = ".dist$", 
+                                  full.names = TRUE) )
+
+
+# create empty vector to store all optimal bins
+all_bins = c()
+min_values = c()
+max_values = c()
+
+# iterate through every distribution file
+for (file in distributions_files)
+{
+  # read distribution file
+  distribution = scan( file=file , quiet=T)
+  
+  # find minimum distribution value
+  dist_min = min(distribution)
+  # append to vector
+  min_values = append(min_values, dist_min)
+  
+  # find maximum distribution value
+  dist_max = max(distribution)
+  # append to vector
+  max_values = append(max_values, dist_max)
+  
+  # hist function to gain histogram 
+  hist = hist(distribution, breaks = "FD" , plot=FALSE )
+  # frequencies/bin ==> counts, so length equals the number of bins
+  bins = length(hist$counts)
+  # append to vector
+  all_bins = append(all_bins, bins)
+}
+
+# find maximum value of optimal bins
+max(all_bins)
+hist(all_bins)
+bins = 50
+min_density = min(min_values)
+max_density = max(max_values)
+
+# calculate bin width
+bin_width = ( (max_density - min_density ) / bins )
+# calculate custom breaks
+breaks = seq( min_density , max_density , by=bin_width)
+write.table(breaks, file="breaks_atom_count")
+
+rm(file,dist_min,min_values,
+   dist_max,max_values,hist)
+
+
+```
+
+```{r}
+
+
+breaks = read.table("breaks_atom_count")
+breaks = c(breaks$x)
+
+cluster_4_6_dist = "~/project/ptixiaki/distributions_analysis/R_pipeline/cluster_4_6_dist"
+
+# get a vector with all distribution file names
+distributions_files = c(
+                        list.files(path = cluster_4_6_dist, 
+                                  recursive = TRUE,
+                                  pattern = ".dist$", 
+                                  full.names = TRUE) )
+
+# dataframe to store bin frequencies from all distributions
+raw_data = data.frame()
+
+# iterate every file
+for (file in distributions_files)
+{
+  # read distribution file
+  distribution = scan( file=file , quiet=TRUE)
+  # number of atoms
+  atoms = length(distribution)
+  
+  # compute bin frequencies
+  bin_frequencies = as.data.frame( table( cut( distribution, 
+                           breaks=breaks, 
+                           right=TRUE, 
+                           include.lowest = TRUE,
+                           dig.lab = min(nchar(breaks) ) 
+                           ) ) ) 
+  
+  # scale bin frequencies
+  #scaled_bin_frequencies = bin_frequencies[,2]/atoms
+  scaled_bin_frequencies = bin_frequencies[,2]/atoms
+
+  # bind to dataframe
+  raw_data = rbind(raw_data,scaled_bin_frequencies)
+    
+}
+
+
+# Check scaling outcome by calculating area
+# under every histogram (must be equal to 1)
+histograms_areas = rowSums( raw_data , na.rm=TRUE)
+histograms_areas = colSums( raw_data , na.rm=TRUE)
+
+rm(file,distribution,atoms,bin_frequencies,scaled_bin_frequencies)
+
+# creation of a vector with pdb ids
+PDBs = c()
+for (i in distributions_files){
+  PDBs = append(PDBs, substr(i,88,91) )
+}
+# we now pass this vector as first column in the dataset
+raw_data = cbind( PDBs , raw_data )
+
+
+# We also create column integer identifiers
+# to name our columns appropriately
+columns = c("PDB_id")
+for (i in 1:bins){
+  columns = append( columns , i )
+}
+colnames(raw_data) = columns
+
+write.table(raw_data , file="raw_data_atom_count_50")
+
+
+```
+
+#### Section 2: Raw Data Visualization
+
+First check the dimensions of the raw data and how many 0s are there
+
+```{r}
+
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/5A")
+raw_data = read.table("raw_data_5A")
+raw_data = as.matrix(raw_data[,-1])
+dim(raw_data)
+
+# X90
+colSums(raw_data) == 0
+
+raw_data_reduced = raw_data[, colSums(raw_data) != 0]
+dim(raw_data_reduced)
+
+
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A")
+raw_data = read.table("raw_data_6A")
+raw_data = as.matrix(raw_data[,-1])
+dim(raw_data)
+
+# X74 - X79, X81 - X84, X86 - X100
+colSums(raw_data) == 0
+
+raw_data_reduced = raw_data[, colSums(raw_data) != 0]
+dim(raw_data_reduced)
+
+
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/7A")
+raw_data = read.table("raw_data_7A")
+raw_data = as.matrix(raw_data[,-1])
+dim(raw_data)
+
+# X67, X71, X73 - X100
+colSums(raw_data) == 0
+
+
+raw_data_reduced = raw_data[, colSums(raw_data) != 0]
+dim(raw_data_reduced)
+
+```
+
+Raw data for analysis is ready. We can now create a scatter plot to see how data is distributed.
+
+```{r , warning=FALSE , eval=FALSE}
+
+breaks = read.table("breaks_atom_weight")
+breaks = c(breaks$x)
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A")
+raw_data = read.table("raw_data_6A")
+dim(raw_data)
+
+# subset the first 70 bins for scatter plot
+raw_data_subset = cbind( "PDB_id" = raw_data[,1] , raw_data[,11:51] )
+dim(raw_data_subset)
+
+# first we have to melt our dataframe
+library(reshape2)
+melt_raw_data = reshape2::melt( raw_data_subset , id.var = "PDB_id")
+
+# compute mean and standard deviation of each bin and combine them to dataframe
+library(dplyr)
+melt_raw_data = melt_raw_data %>%
+  group_by(variable) %>%
+  mutate(mean = mean(value), sd = sd(value)) %>%
+  as.data.frame()
+
+
+# add this loop to eliminate tha values of some standard deviation
+for(i in 1:(ncol(raw_data)-1) )
+{
+  if( ( i %% 5) != 0 ) 
+  {
+      melt_raw_data$sd[melt_raw_data$variable == paste("X",i,sep='')] = NA
+      melt_raw_data$mean[melt_raw_data$variable == paste("X",i,sep='')] = NA
+  }
+}
+
+melt_raw_data$sd[melt_raw_data$variable == "X15"] = NA
+melt_raw_data$mean[melt_raw_data$variable == "X15"] = NA
+
+melt_raw_data$sd[melt_raw_data$variable == "X20"] = NA
+melt_raw_data$mean[melt_raw_data$variable == "X20"] = NA
+
+melt_raw_data$sd[melt_raw_data$variable == "X40"] = NA
+melt_raw_data$mean[melt_raw_data$variable == "X40"] = NA
+
+melt_raw_data$sd[melt_raw_data$variable == "X45"] = NA
+melt_raw_data$mean[melt_raw_data$variable == "X45"] = NA
+
+# for 7A only
+#melt_raw_data$sd[melt_raw_data$variable == "X35"] = NA
+#melt_raw_data$mean[melt_raw_data$variable == "X35"] = NA
+
+
+# scatter_bins will be replaced by scatter_breaks in the scatter plot
+scatter_bins = c(1,11,21,31,41)
+scatter_breaks = 10*( round( c(breaks[11], breaks[21], breaks[31],
+                               breaks[41], breaks[51] ) ,2 ) )
+
+
+# plot
+library(ggplot2)
+
+g = ggplot(melt_raw_data, aes(x=as.numeric(variable) ) )+
+    geom_point( aes( y=value ), color="lightgrey", size=1.5 )+
+    #geom_line( aes(y=value, color=PDB_id), 
+    #               data=outliers_data , size=0.3)+
+  
+    #geom_line( aes( y=mean), color="black", size=0.5 )+
+    geom_errorbar( aes(ymin=mean-sd , ymax=mean+sd), 
+                 color="black" , size=.2)+
+    stat_summary(fun="mean" , geom="line" , aes(y=value) , size=0.5)+
+  
+    theme_classic()+
+
+    theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+    theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+
+    #theme(
+    #     panel.background = element_rect(fill='transparent'),
+    #     plot.background = element_rect(fill='transparent', color=NA),
+    #     panel.grid.major = element_blank(),
+    #     panel.grid.minor = element_blank(),
+    #     legend.background = element_rect(fill='transparent'),
+    #     legend.box.background = element_rect(fill='transparent'))+
+
+    scale_x_continuous( breaks=scatter_bins, 
+                        labels=scatter_breaks )+
+    
+    scale_y_continuous( breaks=c(0.00, 0.04, 
+                                 0.08, 0.12, 0.16, 0.20, 0.24),
+                        limits=c(0,0.24)) +
+
+    labs( y="frequency of spheres" , 
+          x=expression(paste("Daltons per 10", 
+          ring(A)^3 ) ) )
+          #title = "a")
+  
+
+postscript("scatter_final_7A.eps", width=5, height=5, horizontal=FALSE, onefile=FALSE, paper="special")
+g
+dev.off()
+
+rm(i, outliers_data, outliers, outliers_int_id)
+
+
+```
+
+Plot the mean value of the raw data scatter plot with 2 outlier distributions
+
+```{r}
+
+library(ggplot2)
+
+
+breaks = read.table("breaks_atom_weight")
+breaks = c(breaks$x)
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A")
+raw_data = read.table("raw_data_6A")
+dim(raw_data)
+
+# subset the first 70 bins for scatter plot
+raw_data_subset = cbind( "PDB_id" = raw_data[,1] , raw_data[,11:51] )
+
+# first we have to melt our dataframe
+library(reshape2)
+melt_raw_data = reshape2::melt( raw_data_subset , id.var = "PDB_id")
+
+# compute mean and standard deviation of each bin and combine them to dataframe
+library(dplyr)
+melt_raw_data = melt_raw_data %>%
+  group_by(variable) %>%
+  mutate(mean = mean(value), sd = sd(value)) %>%
+  as.data.frame()
+
+
+# add this loop to eliminate tha values of some standard deviation
+for(i in 1:(ncol(raw_data)-1) )
+{
+  if( ( i %% 5) != 0 ) 
+  {
+      melt_raw_data$sd[melt_raw_data$variable == paste("X",i,sep='')] = NA
+      melt_raw_data$mean[melt_raw_data$variable == paste("X",i,sep='')] = NA
+  }
+}
+
+melt_raw_data$sd[melt_raw_data$variable == "X15"] = NA
+melt_raw_data$mean[melt_raw_data$variable == "X15"] = NA
+
+melt_raw_data$sd[melt_raw_data$variable == "X20"] = NA
+melt_raw_data$mean[melt_raw_data$variable == "X20"] = NA
+
+melt_raw_data$sd[melt_raw_data$variable == "X40"] = NA
+melt_raw_data$mean[melt_raw_data$variable == "X40"] = NA
+
+melt_raw_data$sd[melt_raw_data$variable == "X45"] = NA
+melt_raw_data$mean[melt_raw_data$variable == "X45"] = NA
+
+# for 7A only
+#melt_raw_data$sd[melt_raw_data$variable == "X35"] = NA
+#melt_raw_data$mean[melt_raw_data$variable == "X35"] = NA
+
+
+# scatter_bins will be replaced by scatter_breaks in the scatter plot
+scatter_bins = c(1,11,21,31,41)
+scatter_breaks = 10*( round( c(breaks[11], breaks[21], breaks[31],
+                               breaks[41], breaks[51] ) ,2 ) )
+
+
+# we may want to plot some protein-outliers, separately with line plots
+outliers = c("1j0p","3nio")
+
+# identify rows in which there is outliers data
+outliers_int_id = which(melt_raw_data$PDB_id %in% outliers)
+# store outliers data in another dataframe
+outliers_data = melt_raw_data[outliers_int_id,]
+
+
+g = ggplot(melt_raw_data)+
+    geom_line( aes(x=as.numeric(variable), y=value, color=PDB_id), 
+                   data=outliers_data , size=0.3)+
+  
+    geom_line( aes(x=as.numeric(variable), y=mean), color="black", size=0.5 )+
+  
+    stat_summary(fun="mean", geom="line", aes(x=as.numeric(variable), y=value), 
+                 size=0.5)+
+  
+    theme_classic()+
+  
+    theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+    theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+
+    scale_x_continuous( breaks=scatter_bins, 
+                        labels=scatter_breaks )+
+    
+    scale_y_continuous( breaks=c(0.00, 0.04, 
+                                 0.08, 0.12, 0.16, 0.20, 0.24),
+                        limits=c(0,0.24)) +
+
+    labs( y="frequency of spheres" , 
+          x=expression(paste("Daltons per 10", 
+          ring(A)^3 ) ) )
+
+
+postscript("scatter_outliers_final_6A.eps", width=5, height=5, horizontal=FALSE, onefile=FALSE, paper="special")
+g
+dev.off()
+
+
+```
+
+#### Section 3: Distance matrix creation
+
+```{python , eval=FALSE}
+
+import numpy as np
+from contextlib import redirect_stdout
+
+#---- Euclidean Distance ----#
+
+#if you have 100 bins apply 101 in range function
+
+# for raw data file without outliers 
+# (see below chunks on how this file was produced)
+numpy_file = np.loadtxt("./7A/raw_data_removal_100_outliers_7A", 
+                        usecols=sorted(set(range(2,102))), 
+                        skiprows=1 )
+
+# for initial raw data
+#numpy_file = np.loadtxt("./7A/raw_data_7A",
+#                        usecols=sorted(set(range(2,102))),
+#                        skiprows=1 )
+
+# export to file
+with open('distance.matrix.removal.100.outliers.7A', 'w') as output:
+    with redirect_stdout(output):
+        for array_a in numpy_file:
+            for array_b in numpy_file:
+                #euclidean distance calculation
+                dist = np.linalg.norm( array_a - array_b )
+                print('%.5f' % dist , end='\t')
+    
+            print('')
+
+```
+
+Identification of outliers by summing each row from the distance matrix
+
+```{r , eval=FALSE}
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/7A/7A")
+distributions_files = list.files(path = ".", 
+                                 recursive = TRUE,
+                                 pattern = ".dist$", 
+                                 full.names = TRUE)
+
+PDBs = c()
+for (i in distributions_files){
+  PDBs = append(PDBs, substr(i,3,6) )
+}
+
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline")
+
+distance_matrix = matrix(scan("7A/distance.matrix.7A", 
+                 n = 21255*21255), 21255, 21255, byrow = TRUE)
+
+sum = rowSums( distance_matrix , dims=1 )
+sum_df = data.frame( PDBs , sum )
+outliers_df = sum_df[order(sum_df$sum, decreasing = TRUE), ]
+
+top_outliers = c(head( outliers_df$PDBs , 100 ))
+write.table( top_outliers,"top_outliers_distance_matrix_7A")
+
+
+# find which cluster has most distances
+calculate_metrics <- function(matrix) {
+  total_sum <- sum(matrix)                  # Total sum of distances
+  average <- mean(matrix)                   # Average distance
+  max_distance <- max(matrix)               # Maximum distance
+  std_dev <- sd(matrix)                     # Standard deviation
+  
+  return(list(total_sum = total_sum, average = average, max_distance = max_distance, std_dev = std_dev))
+}
+
+metrics1 <- calculate_metrics(distance_matrix)
+
+# 7A  total_sum: 44000000  average: 0.0973  max_dist: 0.468  sd: 0.0552
+# 6A  total_sum: 31000000  average: 0.0685  max_dist: 0.354  sd: 0.035
+# 5A  total_sum: 23166256  average: 0.0513  max_dist: 0.288  sd: 0.0209
+
+
+# plot
+sums = rowSums(distance_matrix, dims=1)
+means <- apply(distance_matrix, 1, mean)
+sds <- apply(distance_matrix, 1, sd)
+medians <- apply(distance_matrix, 1, median)
+maxs <- apply(distance_matrix, 1, max)
+
+data = data.frame(sums, means, sds, medians, maxs)
+write.table(data, file = "rowsums_df_7A")
+
+df_5A = read.table("5A/rowsums_df_5A")
+df_6A = read.table("6A/rowsums_df_6A")
+df_7A = read.table("7A/rowsums_df_7A")
+
+df_5A$radius = "5"
+df_6A$radius = "6"
+df_7A$radius = "7"
+
+df = rbind(df_5A, df_6A, df_7A)
+
+my_comparisons = list( c("5", "6"), c("6","7"), c("5", "7") )
+
+library(ggplot2)
+library(ggpubr)
+
+ggplot(df, aes(x=as.numeric(means), y=as.factor(radius), 
+                      color=as.factor(radius)))+
+  
+  geom_jitter()+
+  geom_violin(trim=FALSE)+
+  geom_boxplot(width = 0.1)+
+  scale_y_discrete(limits=c("5", "6", "7"))+
+  labs(x="Mean of distances", 
+       y = "Radius", color="Radius")+
+  stat_compare_means(label = "p.signif" , comparisons = my_comparisons)
+
+
+```
+
+Create heatmap from distance matrix
+
+```{bash , eval=FALSE}
+
+./plot -cc < 5A/distance.matrix.5A
+
+```
+
+Convert symmetric to triangular matrix
+
+```{python, eval=FALSE}
+
+from contextlib import redirect_stdout
+
+with open("./7A/distance.matrix.7A") as input_file:
+  with open('./7A/distance.matrix.triangular.7A', 'w') as output_file:
+    with redirect_stdout(output_file):
+      i = 0
+      for line in input_file:
+        i += 1
+        list = line.split()
+        print(*list[0:i] , sep=" ")
+
+
+```
+
+Convert triangular matrices to one column and compare different radius
+
+```{bash , eval=FALSE}
+
+
+fmt -1 ./5A/distance.matrix.triangular.5A > ./5A/distance.matrix.triangular.fmt.5A
+fmt -1 ./6A/distance.matrix.triangular.6A > ./6A/distance.matrix.triangular.fmt.6A
+fmt -1 ./7A/distance.matrix.triangular.7A > ./7A/distance.matrix.triangular.fmt.7A
+
+paste ./5A/distance.matrix.fmt.5A ./6A/distance.matrix.fmt.6A | ./plot
+# +0.86346943
+paste ./6A/distance.matrix.fmt.6A ./7A/distance.matrix.fmt.7A | ./plot
+# +0.92953539
+paste ./5A/distance.matrix.fmt.5A ./7A/distance.matrix.fmt.7A | ./plot
+# +0.75881490
+
+
+```
+
+Remove outliers from raw data
+
+```{r , eval=FALSE}
+
+outliers = read.table("./7A/top_outliers_distance_matrix_7A")
+outliers = outliers$x
+
+raw_data = read.table("./7A/raw_data_7A")
+
+non_outliers_int_id = which( ! raw_data$PDB_id %in% outliers )
+non_outliers_data = raw_data[non_outliers_int_id,]
+
+write.table(non_outliers_data , file="./7A/raw_data_removal_100_outliers_7A")
+
+
+```
+
+#### Section 4: Hierarchical clustering
+
+```{r , eval=FALSE}
+
+library(dendextend)
+library(ggplot2)
+library(ggdendro)
+library(dendextend)
+library(dplyr)
+
+# get the PDB names
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A/6A")
+distributions_files = list.files(path = ".", 
+                                 recursive = TRUE,
+                                 pattern = ".dist$", 
+                                 full.names = TRUE)
+
+PDBs = c()
+for (i in distributions_files){
+  PDBs = append(PDBs, substr(i,3,6) )
+}
+
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A")
+
+# Load the distance matrix
+distance_matrix = matrix(scan("./distance.matrix.6A", 
+                  n = 21255*21255), 21255, 21255, byrow = TRUE)
+
+#max = which(distance_matrix == max(distance_matrix), arr.ind=TRUE)
+#distance_matrix[max]
+
+# 0.46836 
+
+# 0.39394 for outliers removed
+
+# Convert the data into a distance matrix format and perform clustering
+hc = hclust( as.dist(distance_matrix) , method = "complete")
+
+
+# find the height for k = 12
+dendrogram_heights <- hc$height
+# Calculate the number of clusters for different heights
+number_of_clusters <- sapply(dendrogram_heights, function(h) {
+  sum(hc$height > h)
+})
+# Find the height that results in 10 clusters
+target_height <- max(dendrogram_heights[number_of_clusters == 12])
+print(target_height)
+
+
+# extract clusters
+clusters = cutree( hc, k = 12)
+#clusters = cutree( hc, h = 0.14)
+
+clusters_df = as.data.frame(clusters)
+rownames( clusters_df ) = PDBs
+clusters_df %>% count(clusters)
+write.table( clusters_df , file="./hierarchical_clusters_df")
+
+
+dend <- as.dendrogram(hc) %>%
+  set("branches_k_color", k = 12)
+
+ggd1 <- as.ggdend(dend)
+
+
+ggplot(ggd1$segments) +
+  
+  #geom_segment(aes(x = x, y = y, xend = xend, yend = yend, col = col))+
+  geom_segment(aes(x = x, y = y, xend = xend, yend = yend))+
+  
+  labs( y="" , x="" )+
+  geom_hline(yintercept = 0.14, color = "red", size = 1)+
+  
+  theme_classic()+
+  
+  theme(
+         #panel.background = element_rect(fill='transparent'),
+         #plot.background = element_rect(fill='transparent', color=NA),
+         #panel.grid.major = element_blank(),
+         #panel.grid.minor = element_blank(),
+         #legend.background = element_rect(fill='transparent'),
+         #legend.box.background = element_rect(fill='transparent'),
+         
+         axis.text.x=element_blank(), 
+         axis.ticks.x=element_blank(),
+         #axis.text.y=element_blank(),
+         #axis.ticks.y=element_blank(),
+         
+         axis.text.y=element_text(size=14),
+
+         legend.position = "none")
+
+
+ggsave('hierarchical_red_line.png', 
+       #bg='transparent',
+       plot = last_plot(),
+       device = "png",
+       width = 5, height = 5, dpi = 1000, units = "in")
+
+
+```
+
+#### Section 5: PCA
+
+```{r}
+
+library(factoextra)
+library(rgl)
+library(ggplot2)
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A")
+df = read.table('raw_data_6A' , header=TRUE)
+
+names = df[,1]
+df = df[,-1]
+rownames(df) = names
+
+df = df[, colSums(df) != 0]
+#df = scale(df)
+
+
+outliers_5A = c("1jkm","6r01","4mt2","5nqo","4cjd",
+                "3twy","6zif","4bjh","2o9g","4qqh",
+                "1j0p","1m1q","3iwl","3nio","1ljo",
+                "6ufe","3ldc","2pk8","1j99","6o9u",
+                "6p5t","6fuu","3fvb","3r2k","3uoi",
+                "3cao","3h4n","2bou","1gyo","1up9",
+                "1wad","4haj","3o2e","4ct3","6wis",
+                "1ct9","2fbh","6n90","1zps","2czs",
+                "6aqk","1cc8","1p0z","1psr","3vsn",
+                "1h9m","5cs2","2fkk","2p0b","2ckk",
+                "1czj","2xvy","2x4k","2cvc","1mxr",
+                "2fdn","1jni","3ehg","2cy3","2bq4",
+                "1rwj","6jv7","27l1","2pl1","4ndo",
+                "1fr3","6y6e","3ii2",
+                
+                "3mko","2yjk","2chp","5o6u","3o7a",
+                "1k0u","3ir3","7lpz",
+                
+                "5o3u","1k9u","3c7a","7nx1")
+
+
+
+outliers_6A = c("1jkm","6r01","5nqo","6zif","4mt2",
+                "4qqh","3twy","4cjd","3ldc","1m1q",
+                "3r2k","3uoi","3fvb","3cao","1j0p",
+                "4haj","3nio","3h4n","6a2w","1rwj",
+                "1wad","2cy3","1up9","1gyo","6n90",
+                "2fdn","2bq4","1jni","2cvc","1czj",
+                "1z1n","2qf9","2p0b","1nkz","6wis",
+                "2czs","4ct3","1ofw","3o2e","2bou",
+                "1zps","1j99","2cnq","3iis","3ehg",
+                "5v8k","7avk","3ir3","8d04","3u5s",
+                "6p5t","3vsn","3gdw","1psr","1p0z",
+                "3tbm","5tk2","6i5b","1h9m","5dlb",
+                "2pk8","3i7t","6q3p","5d8v","6o19",                    
+                "3mc3","7lf3","3ql9","6q43","3utn",
+                "5lfn","4zkd","2pne","2hra","2ckk",
+                "4f1v","4f8l","3x34","1v6p","1fr3",
+                
+                "6o9u","4bjh","1t9h","3mko","2o9g",
+                "1ct9","2xvy","2yjk","2chp","5o3u",
+                "7viv","2qqy","5hjf","7rur","3c7a",
+                "1k9u","7ah0","5tzd","6bxg","3qt4",
+                "4q2l","1cxy","1ej0","1en2",                    
+                "1ft5","1j8b","1jl5","1oxx","1q08",                    
+                "1sp3","1tuk","1xg0","2cc6","2ftr",                    
+                "2fwt","2p09","2pl1","2qih","2qlw",
+                "3bnj","3fo3","3h31","3itf","3iwl",                    
+                "3ol3","3p4g","3pmc","3qr7","3t92",                    
+                "3tbn","3u99","3vrc","3zhn","4j20",                    
+                "4mtm","4n4j","4p1e","4pss","4v0k",                    
+                "4wck","4xvv","5bs1","5cvw","5dn4",                    
+                "5jph","5mxy","5oc0","5szc","6ha4",                    
+                "6m0q","6mj7","6van","6xfj","7baf",                    
+                "7bmy","7psy","7r84","7vsp","1g4i",                    
+                "1w2f","2gud","2h7z","2qyc","2xr6",                    
+                "2xse","2ykz","2yvr","3a1g","3hoi",                    
+                "3pfy","4a3z","4hjh","4lj0","4m9v",                   
+                "4o9k","4pe0","4q1q","7m10","1f9r",                    
+                "1fth","1h30","1i4j","1l0w","1ldd",                    
+                "2phl","2w25","3iey","3k2o","3my9",                    
+                "3n4p","3nbc","3qtg","3x1l","4g1o",                    
+                "4g2s","4he4","4hi6","4q1t","4tkd",                    
+                "4yxx","5cg5","5csr","5dmd","5mc9",                    
+                "5mtw","5o51","6e8a","6fan","6fsf",                    
+                "6mzp","6qnn","6rmn","6vci","6vna",
+                "7crv","7dkk","7et0","7f8m","7lrh",                    
+                "8d09","1ucs","1uoy","1zlb",                    
+                "2qsk","2rkn","3psm","3x2m",
+                "4eie","4r5r","5nw3","6jk4",                    
+                "6k7c","7fd1","1g6x","1h1o","1hlq",                    
+                "1isu","1tiq","1ty4","2ciw","2oh3",                    
+                "2v9b","3bro","3cg4","3fyb","3kgy",                    
+                "3tbo","3w4s","5do6","5xdh","7ody",
+                "7qtb","1gxu","1t33","1tjo","2bkl",                    
+                "2c41","2cx7","2eh3","2j8k","2vq2",
+                "2wp7","2yzt","3b64","3c3v","3ci9",                    
+                "3du1","3ggm","3goz","3hpy","4cy9",                    
+                "4hhx","4hq1","4ka7","4m32","4tzh",                    
+                "4ufr","4z5w","5ixo","6zt4","7t7a",
+                "1b8z","1ozn","1p9a","2cxh","2p9x",                    
+                "2wfh","3bkr","3lmo","3qc7","3wn4",                    
+                "4im6","4p3v","5yq5","6bxd","6fg8",                    
+                "6fnw","6rcc","1cc8","1hpi","1lqv",                    
+                "1mj4","1mxr","1nl1","1pvm","1zhs",                    
+                "2fbh","2fu4","2x4k","4mi5","4ndo",                    
+                "5wsf","6aqk","6ff2","6ufe","6y6e",
+                "7lpz","7o7g")
+
+
+outliers_7A = c("1jkm","6r01","4qqh","5nqo","6zif",
+                "6n90","3uoi","3r2k","3fvb","5o3u",
+                "2yjk","3nio","4haj","6a2w","4mt2",
+                "1j0p","1m1q","3cao","6o9u","1t9h",
+                "2o9g","3twy","6wis","5v8k","3iis",
+                "2fdn","1gyo","1up9","3h4n","2qqy",
+                "2chp","7viv","3c7a","7rur","1rwj",
+                "2bq4","1jni","2p0b","1nkz","2cy3",
+                "4cjd","2czs","2qf9","1ofw","1wad",
+                "2cnq","5jph","3mc3","2cvc","1z1n",
+                "1czj",
+                
+                "3ir3","1j99","5d8v","4f1v")
+
+
+outliers = c(outliers_6A)
+
+df_remove_outliers = df[!(row.names(df) %in% outliers),]
+df_remove_outliers = df_remove_outliers[, colSums(df_remove_outliers) != 0]
+
+
+
+pca <- prcomp(df, scale. = FALSE)
+#pca <- prcomp(df, scale. = TRUE)
+
+pca3d <- data.frame("PC1" = pca$x[,1], 
+                    "PC2" = pca$x[,2],
+                    "PC3" = pca$x[,3])
+
+#rownames(pca3d)[which( pca3d$PC2 > 0.12)]
+
+
+pca3d$label = ""
+pca3d[ which(rownames(df) == "3nio") , ]$label = "3nio"
+pca3d[ which(rownames(df) == "1j0p") , ]$label = "1j0p"
+
+
+g = ggplot( pca3d, aes(x= PC1 , y= PC2) )+
+  theme_classic()+
+  geom_bin2d(bins = 70) +
+  scale_fill_continuous(type = "viridis")+
+  guides(color = FALSE)+
+  geom_text(aes(label = label), color = "black", size = 3, vjust = -1, hjust = +0.5)+
+  theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+  theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+
+postscript("pc1_pc2_outliers.eps", width=5, height=5, horizontal=FALSE, onefile=FALSE, paper="special")
+g
+dev.off()
+
+
+
+#plot3d(pca3d[,1:3], 
+#       size=5)
+#rgl.postscript("my_3d_plot.eps", fmt = "eps")
+
+
+```
+
+#### Section 6: HDBSCAN
+
+```{r}
+
+library(dbscan)
+
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A")
+df = read.table('raw_data_6A' , header=TRUE )
+
+
+names = df[,1]
+df = df[,-1]
+rownames(df) = names
+
+
+clust = hdbscan( df , minPts = 6)
+clust
+hdbscan_df = data.frame("PDBs" = names, "cluster" = clust$cluster )
+
+write.table( hdbscan_df , file="./hdbscan_clusters_df6")
+
+#which(hdbscan_df$cluster == 1)
+#hdbscan_df[6357,]
+
+
+
+```
+
+#### Section 7: Clusters comparison
+
+Graphical comparison
+
+```{r}
+
+breaks = read.table("breaks")
+breaks = c(breaks$x)
+
+#setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A")
+
+hierarchical_df = read.table("hierarchical_clusters_6A_df")
+PDBs = c(rownames(hierarchical_df))
+counts = data.frame(table(hierarchical_df$clusters))
+cluster1 = which( hierarchical_df$clusters == 6)
+cluster2 = which( hierarchical_df$clusters == 4)
+
+raw_data = read.table("raw_data_6A")
+#num_zero_columns <- sum(colSums(raw_data != 0) == 0)
+raw_data_subset = cbind( "PDB_id" = raw_data[,1] , raw_data[,11:51] )
+
+cluster1_df = raw_data_subset[cluster1,]
+cluster2_df = raw_data_subset[cluster2,]
+
+cluster1_df$cluster = "6"
+cluster2_df$cluster = "4"
+
+cluster_df = rbind(cluster1_df, cluster2_df)
+
+
+
+# first we have to melt our dataframe
+library(reshape2)
+melt_raw_data = reshape2::melt( cluster_df , id.vars= c("PDB_id","cluster") )
+
+# compute mean and standard deviation of each bin and combine them to dataframe
+library(dplyr)
+melt_raw_data = melt_raw_data %>%
+  group_by(variable) %>%
+  mutate(mean = mean(value)) %>%
+  as.data.frame()
+
+
+# scatter_bins will be replaced by scatter_breaks in the scatter plot
+scatter_bins = c(1,11,21,31,41)
+scatter_breaks = 10*( round( c(breaks[11], breaks[21], breaks[31],
+                               breaks[41], breaks[51] ) ,2 ) )
+
+
+
+# plot
+library(ggplot2)
+
+g = ggplot(melt_raw_data, aes(x=as.numeric(variable) ) )+
+    geom_point( aes( y=value, color=cluster), size=1.5, alpha=0.5 )+
+  
+    stat_summary(fun="mean" , geom="line" , aes(y=value, group=cluster), size=0.5)+
+  
+    theme_classic()+
+  
+    theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+    theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+  
+    scale_x_continuous( breaks=scatter_bins, 
+                        labels=scatter_breaks )+
+    
+    scale_y_continuous( breaks=c(0.00, 0.04, 
+                                 0.08, 0.12, 0.16, 0.20, 0.24),
+                        limits=c(0,0.24))+
+
+    labs( y="frequency of spheres" , 
+          x=expression(paste("Daltons per 10", 
+          ring(A)^3 ) ) )
+
+
+ggsave('tt.png', 
+       #bg='transparent',
+       plot = last_plot(),
+       device = "png",
+       width = 5, height = 5, dpi = 1000, units = "in")
+
+
+```
+
+Comparison with Z scores
+
+```{r}
+
+library(ggdendro)
+library(dendextend)
+
+z_scores_df <- data.frame(matrix(ncol = 12, nrow = 12))
+colnames(z_scores_df) <- c("1", "2", "3","4","5","6","7","8","9","10","11","12")
+rownames(z_scores_df) <- c("1", "2", "3","4","5","6","7","8","9","10","11","12")
+
+
+breaks = read.table("breaks_atom_weight")
+breaks = c(breaks$x)
+breaks_mean_freq = breaks[1:41]
+
+raw_data = read.table("raw_data_6A")
+raw_data_subset = cbind( "PDB_id" = raw_data[,1] , raw_data[,11:51] )
+
+hierarchical_df = read.table("hierarchical_clusters_6A_df")
+PDBs = c(rownames(hierarchical_df))
+
+cluster1 = which( hierarchical_df$clusters == 1 | hierarchical_df$clusters == 2)
+
+
+for (i in 1:12){
+  for (j in 1:12){
+    if (i != j){
+
+      cluster1 = which( hierarchical_df$clusters == i)
+      cluster2 = which( hierarchical_df$clusters == j)
+
+      cluster1_df = raw_data_subset[cluster1,]
+      cluster2_df = raw_data_subset[cluster2,]
+      
+      cluster1_df$cluster = as.character(i)
+      cluster2_df$cluster = as.character(j)
+      
+      cluster_df = rbind(cluster1_df, cluster2_df)
+      
+      group_mean = aggregate(x= cluster_df[,2:42],
+                            by = list(cluster_df$cluster),      
+                            FUN = mean)
+      
+      mean_freq_1 = group_mean[1,2:42]
+      mean_freq_1 = t(mean_freq_1)
+      mean_freq_2 = group_mean[2,2:42]
+      mean_freq_2 = t(mean_freq_2)
+      
+      mean_value_1 <- sum(breaks_mean_freq * mean_freq_1) / sum(mean_freq_1)
+      mean_value_2 <- sum(breaks_mean_freq * mean_freq_2) / sum(mean_freq_2)
+      
+      std_value_1 <- sqrt(sum(mean_freq_1 * (breaks_mean_freq - mean_value_1)^2) / 
+                        sum(mean_freq_1))
+      
+      std_value_2 <- sqrt(sum(mean_freq_2 * (breaks_mean_freq - mean_value_2)^2) / 
+                        sum(mean_freq_2))
+
+      
+      gaussian <- function(x, a, x0, sigma) {
+        a * exp(-((x - x0) ^ 2) / (2 * sigma ^ 2))
+      }
+      
+      df_1 <- data.frame(x = mean_freq_1)
+      hist_df_1 <- data.frame(breaks_mean_freq = breaks_mean_freq, 
+                              mean_freq = mean_freq_1)
+      init_1 <- list(a = max(mean_freq_1), x0 = mean_value_1, sigma = std_value_1)
+      fit_1 <- nls(mean_freq_1 ~ gaussian(breaks_mean_freq, a, x0, sigma), 
+                 data = hist_df_1, start = init_1)
+      
+      # Extract the fitted parameters
+      fitted_params_1 <- summary(fit_1)$parameters
+      a_value_1 <- fitted_params_1["a", "Estimate"]
+      x0_value_1 <- fitted_params_1["x0", "Estimate"]
+      sigma_value_1 <- fitted_params_1["sigma", "Estimate"]
+      
+      df_2 <- data.frame(x = mean_freq_2)
+      hist_df_2 <- data.frame(breaks_mean_freq = breaks_mean_freq, 
+                              mean_freq = mean_freq_2)
+      init_2 <- list(a = max(mean_freq_2), x0 = mean_value_2, sigma = std_value_2)
+      fit_2 <- nls(mean_freq_2 ~ gaussian(breaks_mean_freq, a, x0, sigma), 
+                 data = hist_df_2, start = init_2)
+      
+      # Extract the fitted parameters
+      fitted_params_2 <- summary(fit_2)$parameters
+      a_value_2 <- fitted_params_2["a", "Estimate"]
+      x0_value_2 <- fitted_params_2["x0", "Estimate"]
+      sigma_value_2 <- fitted_params_2["sigma", "Estimate"]
+      
+      
+      set.seed(123)
+      x <- seq(min(breaks_mean_freq), max(breaks_mean_freq), length.out = 41)
+      y <- a_value_1 * exp(-((x - x0_value_1)^2) / (2 * sigma_value_1^2))
+      
+      
+      set.seed(123)
+      x <- seq(min(breaks_mean_freq), max(breaks_mean_freq), length.out = 41)
+      y <- a_value_2 * exp(-((x - x0_value_2)^2) / (2 * sigma_value_2^2))
+      
+      
+      mean1 <- x0_value_1
+      mean2 <- x0_value_2
+      sd1 <- sigma_value_1
+      sd2 <- sigma_value_2
+      n1 <- 41
+      n2 <- 41
+      
+      SE_diff <- sqrt((sd1^2 / n1) + (sd2^2 / n2))
+      
+      z_score <- (mean1 - mean2) / SE_diff
+      
+
+      z_scores_df[i,j] = abs(z_score)
+      
+    }
+  }
+}
+
+
+z_scores_matrix = as.matrix(z_scores_df)
+z_scores_matrix[upper.tri(z_scores_matrix)]=0
+
+hc = hclust( as.dist(z_scores_matrix) , method = "complete")
+
+dend <- as.dendrogram(hc)
+ggd1 <- as.ggdend(dend)
+
+
+library(ggplot2)
+
+
+ggplot(ggd1$segments) +
+  
+  geom_segment(aes(x = x, y = y, xend = xend, yend = yend))+
+  
+  labs( y="" , x="" )+
+  theme_classic()+
+  
+  geom_text(data = ggd1$labels, aes(x = x, y = y, label = label), 
+            angle = 0, hjust = 0.5, vjust = 1.5, size = 4)+
+  
+  theme(
+         axis.text.x=element_blank(), 
+         axis.ticks.x=element_blank(),
+         #axis.text.y=element_blank(),
+         #axis.ticks.y=element_blank(),
+         axis.line.x = element_blank(),
+         
+         axis.text.y=element_text(size=14),
+
+         legend.position = "none")
+
+
+ggsave('dendrogram_z_scores.png', 
+       #bg='transparent',
+       plot = last_plot(),
+       device = "png",
+       width = 5, height = 5, dpi = 1000, units = "in")
+
+
+```
+
+Export clusters of interest to new dataframe
+
+```{r}
+
+hierarchical_df = read.table("hierarchical_clusters_6A_df")
+PDBs = c(rownames(hierarchical_df))
+Clusters = c(hierarchical_df[,1])
+
+cluster4 = which( hierarchical_df$clusters == 4)
+cluster6 = which( hierarchical_df$clusters == 6)
+cluster8 = which( hierarchical_df$clusters == 8)
+cluster11 = which( hierarchical_df$clusters == 11)
+cluster3 = which( hierarchical_df$clusters == 3)
+
+cluster4_df = data.frame("id" = PDBs[cluster4], "cluster" = 4)
+write.csv(cluster4_df, "cluster_4_df", row.names = FALSE)
+
+cluster6_df = data.frame("id" = PDBs[cluster6], "cluster" = 6)
+write.csv(cluster6_df, "cluster_6_df", row.names = FALSE)
+
+cluster8_df = data.frame("id" = PDBs[cluster8], "cluster" = 8)
+write.csv(cluster8_df, "cluster_8_df", row.names = FALSE)
+
+cluster11_df = data.frame("id" = PDBs[cluster11], "cluster" = 11)
+write.csv(cluster11_df, "cluster_11_df", row.names = FALSE)
+
+cluster3_df = data.frame("id" = PDBs[cluster3], "cluster" = 3)
+write.csv(cluster3_df, "cluster_3_df", row.names = FALSE)
+
+
+cluster_df = rbind(cluster4_df, cluster6_df, cluster8_df, cluster11_df)
+write.csv(cluster_df, "cluster_4_6_8_11_df", row.names = FALSE)
+
+cluster_df = data.frame("id" = PDBs, "cluster" = Clusters)
+write.csv(cluster_df, "cluster_all_df", row.names = FALSE)
+
+
+subcluster <- cluster4[seq(1, length(cluster4), 5)]
+subcluster = PDBs[subcluster]
+
+
+```
+
+Graphical comparison of clusters 4 and 6 with atom count approach
+
+```{r}
+
+
+cluster6_df = read.csv("cluster_6_df")
+cluster4_df = read.csv("cluster_4_df")
+
+cluster6_ids = cluster6_df$id
+cluster6_files <- paste0(cluster6_ids, ".pdb.water")
+cluster4_ids = cluster4_df$id
+cluster4_files <- paste0(cluster4_ids, ".pdb.water")
+
+raw_data = read.table("raw_data_atom_count_50")
+PDBs = raw_data$PDB_id
+
+cluster6 = match(cluster6_ids, PDBs)
+cluster4 = match(cluster4_ids, PDBs)
+
+#raw_data_subset = cbind( "PDB_id" = raw_data[,1] , raw_data[,2:100] )
+raw_data_subset = cbind( "PDB_id" = raw_data[,1] , raw_data[,3:46] )
+
+cluster6_df = raw_data_subset[cluster6,]
+cluster4_df = raw_data_subset[cluster4,]
+
+cluster6_df$cluster = "6"
+cluster4_df$cluster = "4"
+
+cluster_df = rbind(cluster6_df, cluster4_df)
+
+
+# first we have to melt our dataframe
+library(reshape2)
+melt_raw_data = reshape2::melt( cluster_df , id.vars= c("PDB_id","cluster") )
+
+# compute mean and standard deviation of each bin and combine them to dataframe
+library(dplyr)
+melt_raw_data = melt_raw_data %>%
+  group_by(variable) %>%
+  mutate(mean = mean(value)) %>%
+  as.data.frame()
+
+
+breaks = read.table("breaks_atom_count")
+breaks = c(breaks$x)
+
+# scatter_bins will be replaced by scatter_breaks in the scatter plot
+scatter_bins = c(1,15,30,46)
+scatter_breaks = 10*( round( c(breaks[3], breaks[18], breaks[33],
+                               breaks[49] ) ,2 ) )
+
+
+# plot
+library(ggplot2)
+
+g = ggplot(melt_raw_data, aes(x=as.numeric(variable) ) )+
+    geom_point( aes( y=value, color=cluster), size=1.5, alpha=0.5 )+
+  
+    stat_summary(fun="mean" , geom="line" , aes(y=value, group=cluster), size=0.5)+
+  
+    theme_classic()+
+  
+    theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+    theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+  
+    scale_x_continuous( breaks=scatter_bins, 
+                        labels=scatter_breaks )+
+    scale_y_continuous( breaks=c(0.00, 0.04, 
+                                 0.08, 0.12, 0.16, 0.20, 0.24),
+                        limits=c(0,0.24))+
+    
+    #scale_y_continuous( breaks=c(0.00, 0.02, 0.04, 0.06),
+    #                    limits=c(0,0.06))+
+
+    labs( y="frequency of spheres" , 
+          x=expression(paste("Atoms per 10", 
+          ring(A)^3 ) ) )
+
+
+ggsave('clusters_comparison.png', 
+       #bg='transparent',
+       plot = last_plot(),
+       device = "png",
+       width = 5, height = 5, dpi = 1000, units = "in")
+
+
+
+```
+
+#### Section 10: MSA
+
+Get FASTA sequences from structures
+
+```{python}
+
+import pandas as pd
+from contextlib import redirect_stdout
+
+aminoacid_dictionary = {
+"ARG": "R",
+"HIS": "H",
+"LYS": "K",
+"ASP": "D",
+"GLU": "E",
+"SER": "S",
+"THR": "T",
+"ASN": "N",
+"GLN": "Q",
+"CYS": "C",
+"GLY": "G",
+"PRO": "P",
+"ALA": "A",
+"VAL": "V",
+"ILE": "I",
+"LEU": "L",
+"MET": "M",
+"PHE": "F",
+"TYR": "Y",
+"TRP": "W",
+
+"PYL": "O",
+"SEC": "U"
+
+}
+
+directory = '/home/touliopoulos/project/ptixiaki/filter_pdb_format_obabel/6_MUTATE_FORMATS'
+
+with open('sequences.fasta', 'w') as output:
+    with redirect_stdout(output):
+        df = pd.read_csv("cluster_all_df")
+        for index, row in df.iterrows():
+            #if row["cluster"] == 11:
+            if row["id"] in unique_pdbs:
+                pdb_id = row["id"]
+                print(">" + pdb_id + "_" + str(row["cluster"]) )
+                
+                file_path = (directory + '/' + pdb_id + ".pdb")
+                fasta_sequence = ""
+                numeric_id_list = []
+                one_letter_list = []
+        
+                with open(file_path, "r" ) as file:
+                    try:
+                        for line in file:
+                            if line[17:20] in list(aminoacid_dictionary.keys()) and  line[77] != "H":
+                                three_letter = line[17:20]
+                                one_letter = aminoacid_dictionary[three_letter]
+                                one_letter_list.append(one_letter)
+                    
+                                numeric_id = line[22:27]
+                                numeric_id = numeric_id.replace(" ", "")
+                                numeric_id_list.append(numeric_id)
+                    except:
+                        print("error in",pdb_id)
+    
+                    for numerid_id in range(len(numeric_id_list)-1):
+                        if numeric_id_list[numerid_id] != numeric_id_list[numerid_id+1]:
+                            fasta_sequence = fasta_sequence + one_letter_list[numerid_id]
+                    fasta_sequence = fasta_sequence + one_letter_list[numerid_id+1]
+                    print(fasta_sequence)
+
+
+
+
+
+directory = '/home/touliopoulos/project/ptixiaki/filter_pdb_format_obabel/1_AMINOACID_CUTOFF/PDB_FORMATS/'
+with open('sequences2.fasta', 'w') as output:
+    with redirect_stdout(output):
+        df = pd.read_csv("cluster_all_df")
+        for index, row in df.iterrows():
+            if row["cluster"] == 6:
+            #if row["id"] in unique_pdbs:
+
+                pdb_id = row["id"]
+                print(">" + pdb_id + "_" + str(row["cluster"]) )
+                
+                file_path = (directory + '/' + pdb_id + ".pdb")
+                fasta_sequence = ""
+
+                with open(file_path, "r" ) as file:
+                    try:
+                        for line in file:
+                            if line.startswith("SEQRES"):
+                                split = line.split()
+                                for word in split:
+                                    if word in list(aminoacid_dictionary.keys()):
+                                        one_letter = aminoacid_dictionary[word]
+                                        fasta_sequence = fasta_sequence + one_letter
+                    
+                    except:
+                        print("error in",pdb_id)
+    
+                    print(fasta_sequence)
+
+
+
+```
+
+Multiple Sequence Alignment
+
+```{r}
+
+library(msa)
+library(seqinr)
+library(ape)
+
+hemoSeq <- readAAStringSet("sequences.fasta")
+
+hemoAln <- msa(hemoSeq)
+hemoAln2 <- msaConvert(hemoAln, type="seqinr::alignment")
+d <- dist.alignment(hemoAln2, "identity")
+
+d = as.matrix(d)
+d = d[rowSums(is.na(d)) == 0, colSums(is.na(d)) == 0, drop = FALSE]
+d = as.dist(d)
+write.table(as.matrix(d),"dd")
+
+hc = hclust( d , method = "complete")
+plot(hc, hang = -1, cex = 0.4)
+
+
+tree <- read.tree("sequences.dnd")
+plot(tree, main="Phylogenetic Tree")
+
+
+tree <- read.tree("sequences2.dnd")
+plot(tree, main="Phylogenetic Tree")
+
+```
+
+#### Section 8: Functional Analysis
+
+Calculate the sum per cluster for each family
+
+```{r}
+
+library(reshape2)
+
+
+classifications_per_cluster = read.csv("classification_counts_all.csv")
+cluster_size_original = c(5813, 7045, 344, 2821, 400)
+# this is abundance of the total of 4 families in each cluster
+cluster_size = c(2597, 3394, 124, 1383, 91)
+
+
+# Hydrolases
+hydrolases <- which(grepl("hydrolase", 
+                          classifications_per_cluster$classification, 
+                          ignore.case = TRUE) &
+                          classifications_per_cluster$cluster %in% 
+                                                     c("1", "3", "4", "5", "6"))
+
+hydrolases = classifications_per_cluster[hydrolases,]
+
+hydrolases_abundance <- aggregate(hydrolases[[3]], 
+                          by = list(Cluster = hydrolases[[1]]), 
+                          FUN = sum)
+
+colnames(hydrolases_abundance) <- c("Cluster", "hydrolases")
+total_hydrolases_abundance = sum(hydrolases_abundance$hydrolases)
+
+
+# Transferases
+transferases <- which(grepl("transfera", 
+                          classifications_per_cluster$classification, 
+                          ignore.case = TRUE) &
+                          classifications_per_cluster$cluster %in% 
+                                                     c("1", "3", "4", "5", "6"))
+
+transferases = classifications_per_cluster[transferases,]
+
+transferases_abundance <- aggregate(transferases[[3]], 
+                          by = list(Cluster = transferases[[1]]), 
+                          FUN = sum)
+
+colnames(transferases_abundance) <- c("Cluster", "transferases")
+total_transferases_abundance = sum(transferases_abundance$transferases)
+
+
+# Oxidoreductases
+oxidoreductases <- which(grepl("oxidoreductase", 
+                          classifications_per_cluster$classification, 
+                          ignore.case = TRUE) &
+                          classifications_per_cluster$cluster %in% 
+                                                     c("1", "3", "4", "5", "6"))
+
+oxidoreductases = classifications_per_cluster[oxidoreductases,]
+
+oxidoreductases_abundance <- aggregate(oxidoreductases[[3]], 
+                          by = list(Cluster = oxidoreductases[[1]]), 
+                          FUN = sum)
+
+colnames(oxidoreductases_abundance) <- c("Cluster", "oxidoreductases")
+total_oxidoreductases_abundance = sum(oxidoreductases_abundance$oxidoreductases)
+
+
+# Oxidoreductases
+ligases <- which(grepl("ligase", 
+                          classifications_per_cluster$classification, 
+                          ignore.case = TRUE) &
+                          classifications_per_cluster$cluster %in% 
+                                                     c("1", "3", "4", "5", "6"))
+
+ligases = classifications_per_cluster[ligases,]
+
+ligases_abundance <- aggregate(ligases[[3]], 
+                          by = list(Cluster = ligases[[1]]), 
+                          FUN = sum)
+
+colnames(ligases_abundance) <- c("Cluster", "ligases")
+total_ligases_abundance = sum(ligases_abundance$ligases)
+
+
+
+# Merge all dataframe
+all_families = cbind(cluster_size, 
+                     hydrolases_abundance, 
+                     transferases_abundance,
+                     oxidoreductases_abundance,
+                     ligases_abundance)
+rownames(all_families) = c("1", "3", "4", "5", "6")
+# remove duplicate cluster id columns
+all_families = all_families[, c(-4,-6,-8)]
+
+other_cluster_1 = 5813 - sum(all_families[1,3:6])
+other_cluster_3 = 7045 - sum(all_families[2,3:6])
+other_cluster_4 = 344 - sum(all_families[3,3:6])
+other_cluster_5 = 2821 - sum(all_families[4,3:6])
+other_cluster_6 = 400 - sum(all_families[5,3:6])
+
+all_families$other = c(other_cluster_1, other_cluster_3, other_cluster_4,
+                       other_cluster_5, other_cluster_6 )
+
+
+
+# First Calculate percentage of family in cluster by dividing 
+# family cluster abundance with total family abundance across clusters
+# Results are comparable only within each cluster
+all_families$hydrolases_family_perc = 100 * all_families$hydrolases/total_hydrolases_abundance
+
+all_families$transferases_family_perc = 100 * all_families$transferases/total_transferases_abundance
+
+all_families$oxidoreductases_family_perc = 100 * all_families$oxidoreductases/total_oxidoreductases_abundance
+
+all_families$ligases_family_perc = 100 * all_families$ligases/total_ligases_abundance
+
+all_families$other_family_perc =  100 * all_families$other/sum(all_families$other)
+
+
+
+
+# Now calculate percentage of family in each cluster by dividing
+# family cluster abundance with cluster size
+# Results are comparable only within each family
+all_families$hydrolases_cluster_perc = 100 * all_families$hydrolases/all_families$cluster_size 
+
+all_families$transferases_cluster_perc = 100 * all_families$transferases/all_families$cluster_size 
+
+all_families$oxidoreductases_cluster_perc = 100 * all_families$oxidoreductases/all_families$cluster_size 
+
+all_families$ligases_cluster_perc = 100 * all_families$ligases/all_families$cluster_size 
+
+
+
+
+# X % of family Y is in cluster Z
+# Cluster 1: more Transferases than Hydrolases
+# Cluster 5: more Hydrolases than Transferases
+# Within one family the sum is 100%
+line_plot_data = all_families[,c(2,8:12)]
+
+colnames(line_plot_data) = c("Cluster", "Hydrolases", "Transferases", 
+                             "Oxidoreductases", "Ligases", "Other")
+
+melt_line_plot_data = reshape2::melt( line_plot_data , id.var = "Cluster")
+melt_line_plot_data$Cluster <- factor(melt_line_plot_data$Cluster, 
+                                      levels = c("4","1","3","5","6") )
+
+colnames(melt_line_plot_data) = c("Cluster","Family","Percentage")
+
+ggplot(melt_line_plot_data, aes(x = Cluster, y = Percentage, fill = Family)) +
+  theme_classic()+
+
+  theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+  theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+  geom_bar(stat = "identity", position = "dodge")+
+  #scale_fill_manual(values = c("blue", "red","orange","green"))+
+  theme(text = element_text(size = 12))+
+  
+  scale_y_continuous( breaks=c(0, 20, 40, 60, 80),
+                        limits=c(0,80))+
+  
+  scale_fill_manual(values = c("Hydrolases" = "blue", 
+                               "Transferases" = "orange",
+                               "Oxidoreductases" = "green",
+                               "Ligases" = "red",
+                               "Other" = "yellow"))+
+  
+  labs( y="% of Families per Clusters", 
+        x="Cluster" )
+
+ggsave("functional_compare_within_clusters.png", plot = last_plot(), 
+       width = 5, height = 5, dpi = 1000, device = "png", unit="in")
+
+
+
+
+
+
+# In cluster Z: X% is family A, Y % is family B
+# Hydrolases tend to increase as we go to the dense clusters
+# Transferases tend to increase as we go to the loose clusters
+# within one cluster the sum is 100%
+line_plot_data = all_families[,c(2,13:16)]
+
+colnames(line_plot_data) = c("Cluster", "Hydrolases", "Transferases", 
+                             "Oxidoreductases", "Ligases")
+
+melt_line_plot_data = reshape2::melt( line_plot_data , id.var = "Cluster")
+melt_line_plot_data$Cluster <- factor(melt_line_plot_data$Cluster, 
+                                      levels = c("4","1","3","5","6") )
+
+colnames(melt_line_plot_data) = c("Cluster","Family","Percentage")
+
+ggplot(melt_line_plot_data, aes(x = Cluster, y = Percentage, fill = Family)) +
+  theme_classic()+
+
+  theme(axis.text.x=element_text(size=14),
+        axis.title.x=element_text(size=16))+
+  theme(axis.text.y=element_text(size=14),
+        axis.title.y=element_text(size=16))+
+  geom_bar(stat = "identity", position = "dodge")+
+  
+  scale_y_continuous( breaks=c(0, 20, 40, 60, 80),
+                        limits=c(0,80))+
+  
+  scale_fill_manual(values = c("Hydrolases" = "blue", 
+                               "Transferases" = "orange",
+                               "Oxidoreductases" = "green",
+                               "Ligases" = "red"))+
+  
+  labs( y="% of Families per Clusters", 
+        x="Cluster" )
+
+ggsave("functional_compare_within_clusters_2.png", plot = last_plot(), 
+       width = 5, height = 5, dpi = 1000, device = "png", unit="in")
+
+
+```
+
+#### Section 9: Prepare Structural Features and Density Stats
+
+```{r}
+
+
+hierarchical_df = read.table("hierarchical_clusters_6A_df")
+PDBs = c(rownames(hierarchical_df))
+Clusters = c(hierarchical_df[,1])
+
+# calculate atomic density distribution moments
+files = paste0("6A/6A/", PDBs , ".pdb.water.dist")
+
+moments_df = data.frame(
+                PDB = character(), 
+                cluster = character(),
+                median = numeric(),
+                sd = numeric() )
+
+# iterate every file
+i = 0
+for (file in files)
+{
+  i = i + 1
+  cluster = Clusters[i]
+  # read distribution file
+  distribution = scan( file=file , quiet=TRUE)
+  median = median(distribution)
+  sd = sd(distribution)
+ 
+  moments_df[i, ] = c(substr(file,7,10), 
+                      cluster, 
+                      median, 
+                      sd )
+}
+
+write.table(moments_df, "median_std_density_6A")
+
+
+### -------------------------------
+
+
+ca_bfactor_water = read.table("alpha_carbons_bfactors_normalized_water_mass.counts" , sep=" ", header=F)[,1:4]
+colnames(ca_bfactor_water) = c("PDB", "alpha_carbons", 
+                  "median_bfactor", "normalized_water_mass")
+
+median_std_density = read.table("median_std_density_6A")
+colnames(median_std_density) = c("PDB", "cluster", "median_density", "std_density")
+
+secondary_structure_elements = read.table("secondary_structure_percentage_stride")[,c(1,2,3)]
+colnames(secondary_structure_elements) = c("PDB", "alpha_helix", "beta_strand")
+
+library(dplyr)
+library(ggpubr)
+
+df <- ca_bfactor_water %>%
+  full_join(median_std_density, by = "PDB") %>%
+  full_join(secondary_structure_elements, by = "PDB")
+
+#df = na.omit(df)
+# remove structures with NAs in median_density column
+df <- df[!is.na(df$median_density), ]
+write.table(df , file="structural_features_density_metrics_6A")
+
+
+```
+
+#### Section 10: Size
+
+```{r}
+
+
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(moments)
+library(scales)
+library(cowplot)
+library(patchwork)
+
+
+
+structural_features_density_metrics_5A = read.table("structural_features_density_metrics_5A")
+structural_features_density_metrics_6A = read.table("structural_features_density_metrics_6A")
+structural_features_density_metrics_7A = read.table("structural_features_density_metrics_7A")
+
+structural_features_density_metrics_5A_6A_7A = rbind(
+ structural_features_density_metrics_5A,
+ structural_features_density_metrics_6A,
+ structural_features_density_metrics_7A
+)
+
+min_median = min(structural_features_density_metrics_5A_6A_7A$median_density)
+max_median = max(structural_features_density_metrics_5A_6A_7A$median_density)
+
+min_sd = min(structural_features_density_metrics_5A_6A_7A$std_density)
+max_sd = max(structural_features_density_metrics_5A_6A_7A$std_density)
+
+df = read.table("structural_features_density_metrics_6A")
+#df = na.omit(df)
+
+ggplot(df, aes(x=alpha_carbons, 
+               y=median_density) )+ 
+  labs(x="Number of Residues", y = "Median Density")+
+
+  theme_classic()+
+  
+    theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+    theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+  
+  geom_point()+
+  geom_smooth(method=lm)+
+   
+  scale_x_continuous( breaks=c(0,1250,2500,3750,5000), 
+                      limits=c(0,5000) )+
+    
+  scale_y_continuous( breaks = seq(min_median, max_median, length.out = 5),
+                      limits=c(min_median, max_median),
+                      labels = number_format(accuracy = 0.01))
+
+ggsave("median_density_alpha_carbons.png", plot = last_plot(), 
+       width = 5, height = 5, dpi = 1000, device = "png", unit="in")
+
+cor(as.numeric(df$median_density), 
+    as.numeric(df$alpha_carbons), 
+    method = 'spearman')
+
+### -----------------
+
+ggplot(df, aes(x=alpha_carbons, 
+               y=std_density) )+ 
+       geom_point()+
+       labs(x="Number of Residues", y = "Standard Deviation")+
+
+        theme_classic()+
+  
+        theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+        theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+  
+       scale_x_continuous( breaks=c(0,1250,2500,3750,5000), 
+                      limits=c(0,5000) )+
+    
+       scale_y_continuous( breaks = seq(min_sd, max_sd, length.out = 5),
+                      limits=c(min_sd, max_sd),
+                      labels = number_format(accuracy = 0.01))
+
+ggsave("std_density_alpha_carbons.png", plot = last_plot(), 
+       width = 5, height = 5, dpi = 1000, device = "png", unit="in")
+
+
+### ------------------
+
+df = read.table("structural_features_density_metrics_6A")
+#df = na.omit(df)
+
+
+# protein size - density comparison
+quantile(df$alpha_carbons, probs = c(0,0.2,0.4,0.6,0.8,1))
+#  51  182  281  406  664 4682 
+
+extra_large_proteins = subset(df, as.numeric(alpha_carbons) >= 664 &
+                                  as.numeric(alpha_carbons) < 4682)
+extra_large_proteins$size = "extra_large"
+
+
+large_proteins = subset(df, as.numeric(alpha_carbons) < 664 &
+                            as.numeric(alpha_carbons) >= 406)
+large_proteins$size = "large"
+
+
+medium_proteins = subset(df, as.numeric(alpha_carbons) < 406 &
+                            as.numeric(alpha_carbons) >= 281)
+medium_proteins$size = "medium"
+
+
+small_proteins = subset(df, as.numeric(alpha_carbons) < 281 &
+                            as.numeric(alpha_carbons) >= 182)
+small_proteins$size = "small"
+
+
+extra_small_proteins = subset(df, as.numeric(alpha_carbons) < 182 &
+                                  as.numeric(alpha_carbons) >= 51)
+extra_small_proteins$size = "extra_small"
+
+
+
+median(extra_large_proteins$median_density)
+median(large_proteins$median_density)
+median(medium_proteins$median_density)
+median(small_proteins$median_density)
+median(extra_small_proteins$median_density)
+
+median(extra_large_proteins$std_density)
+median(large_proteins$std_density)
+median(medium_proteins$std_density)
+median(small_proteins$std_density)
+median(extra_small_proteins$std_density)
+
+
+
+```
+
+#### Section 11: Secondary structure
+
+```{r}
+
+library(ggplot2)
+library(moments)
+library(ggpubr)
+
+
+df = read.table("structural_features_density_metrics_6A")
+#df = na.omit(df)
+
+hierarchical_df = read.table("hierarchical_clusters_6A_df")
+PDBs = c(rownames(hierarchical_df))
+
+cluster4 = PDBs[which(hierarchical_df$clusters == 4)]
+cluster1 = PDBs[which(hierarchical_df$clusters == 1)]
+cluster3 = PDBs[which(hierarchical_df$clusters == 3)]
+cluster5 = PDBs[which(hierarchical_df$clusters == 5)]
+cluster6 = PDBs[which(hierarchical_df$clusters == 6)]
+
+cluster4_df = df[df$PDB %in% cluster4,]
+cluster1_df = df[df$PDB %in% cluster1,]
+cluster3_df = df[df$PDB %in% cluster3,]
+cluster5_df = df[df$PDB %in% cluster5,]
+cluster6_df = df[df$PDB %in% cluster6,]
+
+cluster4_df$cluster = "4"
+cluster1_df$cluster = "1"
+cluster3_df$cluster = "3"
+cluster5_df$cluster = "5"
+cluster6_df$cluster = "6"
+
+cluster_df = rbind(cluster4_df, cluster1_df, cluster3_df, cluster5_df, cluster6_df)
+
+my_comparisons = list( c("4", "1"), c("1","3"), c("3", "5"), c("5","6") )
+
+
+
+ggplot(cluster_df, aes(x=as.numeric(alpha_helix), y=as.factor(cluster), 
+                      color=as.factor(cluster)))+
+  
+  geom_jitter()+
+  geom_violin(trim=FALSE)+
+  geom_boxplot(width = 0.1)+
+  
+  scale_y_discrete(limits=c("4", "1", "3", "5", "6"))+
+  theme_classic()+
+
+  theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=14))+
+  theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=14))+
+
+  labs(x="% of Residues Contributing to Alpha-Helices", 
+       y = "Cluster", color="Cluster")+
+  stat_compare_means(label = "p.signif" , comparisons = my_comparisons)
+
+ggsave("alpha_helices_per_cluster.png", plot = last_plot(), 
+       width = 5, height = 5, dpi = 1000, device = "png",
+       units = "in")
+
+
+
+ggplot(cluster_df, aes(x=as.numeric(beta_strand), y=as.factor(cluster), 
+                      color=as.factor(cluster)))+
+  
+  geom_jitter()+
+  geom_violin(trim=FALSE)+
+  geom_boxplot(width = 0.1)+
+  
+  scale_y_discrete(limits=c("4", "1", "3", "5", "6"))+
+  theme_classic()+
+
+  theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=14))+
+  theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=14))+
+
+  labs(x="% of Residues Contributing to Beta-Strands", 
+       y = "Cluster", color="Cluster")+
+  stat_compare_means(label = "p.signif" , comparisons = my_comparisons)
+
+ggsave("beta_strands_per_cluster.png", plot = last_plot(), width = 5, height = 5, 
+       dpi = 1000, device = "png", units = "in")
+
+
+```
+
+#### Section 12: Crystallographic Water Abundance
+
+```{r}
+
+
+library(ggplot2)
+library(ggpubr)
+
+
+df = read.table("structural_features_density_metrics_6A")
+#df = na.omit(df)
+
+
+subset_water_mass = subset(df, normalized_water_mass > 0 &
+                               normalized_water_mass < 50)
+ggplot(subset_water_mass, 
+       aes(x=normalized_water_mass, 
+           y=median_density ) )+ 
+       geom_point()+
+       labs(x="Size-Normalized Total Water Mass", y = "Median Density")+
+  
+       theme_classic()+
+  
+       theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+       theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+
+       geom_smooth(method=lm)
+
+cor(as.numeric(df$median_density), 
+    as.numeric(df$normalized_water_mass), 
+    method = 'spearman')
+
+
+
+
+ggsave("water_mass_median_density.png", plot = last_plot(), 
+       width = 5, height = 5, dpi = 1000, device = "png", unit="in")
+
+
+
+
+```
+
+#### Section 13: B-factors
+
+```{r}
+
+library(ggplot2) 
+library(stats)
+library(ggpubr)
+
+
+df = read.table("structural_features_density_metrics_6A")
+#df = na.omit(df)
+
+
+subset_df = subset(df, median_bfactor < 90)
+ggplot(subset_df, aes(x=median_bfactor, y=median_density) )+
+  geom_point()+
+
+  geom_smooth(method=lm)+
+  labs(x="Median B-factor", y = "Median Density")+
+  theme_classic()+
+  
+  theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+  theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))
+
+cor(as.numeric(df$median_density), 
+    as.numeric(df$median_bfactor), 
+    method = 'spearman')
+
+
+ggsave("b-factors.png", plot = last_plot(), 
+       width = 5, height = 5, dpi = 1000, device = "png")
+
+
+```
+
+#### Section 14: Keywords
+
+```{r}
+
+# Load necessary libraries
+library(dplyr)
+library(tidyr)
+
+
+hierarchical_df = read.table("hierarchical_clusters_6A_df")
+PDBs = c(rownames(hierarchical_df))
+cluster4 = PDBs[which(hierarchical_df$clusters == 4)]
+cluster6 = PDBs[which(hierarchical_df$clusters == 6)]
+
+df = read.table("keywords_4_6_df.csv", sep=",", header=T)
+
+cluster4_df = subset(df, ID %in% cluster4)
+cluster6_df = subset(df, ID %in% cluster6)
+
+cluster4_df$cluster = "4"
+cluster6_df$cluster = "6"
+
+df = rbind(cluster4_df, cluster6_df)
+
+# 1. Calculate percentages for each column within each cluster
+percentage_df <- df %>%
+  group_by(cluster) %>%
+  summarise(across(2:(dim(df)[2] - 1), ~ if(is.numeric(.x)) mean(.x) * 100 else NA_real_))
+
+
+cutoff <- 1
+
+percentage_long <- percentage_df %>%
+  pivot_longer(cols = -cluster, names_to = "variable", values_to = "percentage") %>%
+  filter(!is.na(percentage))
+
+percentage_wide <- percentage_long %>%
+  pivot_wider(names_from = cluster, values_from = percentage, names_prefix = "cluster_")
+
+percentage_wide <- percentage_wide %>%
+  mutate(across(starts_with("cluster_"), as.numeric))
+
+filtered_variables <- percentage_wide %>%
+  mutate(
+    diff_4_6 = abs(cluster_4 - cluster_6)
+  ) %>%
+  # Keep rows where at least two of the differences are above the cutoff
+  filter(
+    (diff_4_6 > cutoff )
+  ) %>%
+  # Select only the variable and the cluster percentages
+  select(variable, cluster_4, cluster_6)
+
+
+
+# Check duplicates !!!!!!
+columns_to_sum <- grep("CYTOCHROME", names(df), value = TRUE)
+
+columns_to_sum <- grep("COILED", names(df), value = TRUE)
+
+columns_to_sum <- grep("COILEDCOIL", names(df), value = TRUE)
+
+
+# Is 5mc9 a coiled-coil structure?
+rows_with_4 <- which(rowSums(cluster4_df[, columns_to_sum, drop = FALSE] == 1) > 0)
+rows_with_4 = unique(rows_with_4)
+cluster4_df$ID[rows_with_4]
+
+
+# 2VOK is not a coiled-coil so substract 1 from coiled counts (27-1)
+rows_with_6 <- which(rowSums(cluster6_df[, columns_to_sum, drop = FALSE] == 1) > 0)
+rows_with_6 = unique(rows_with_6)
+cluster6_df$ID[rows_with_6]
+any(duplicated(cluster6_df$ID[rows_with_6]))
+length(cluster6_df$ID[rows_with_6])
+
+
+```
+
+#### 

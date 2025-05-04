@@ -1,3 +1,3 @@
-# touliopoulos_thesis
+# Atomic Density Distributions in Proteins: Structural and Functional Implications
 
-Scripts for Bachelor studies thesis
+This Repo contains Code and Data for a Research Article
