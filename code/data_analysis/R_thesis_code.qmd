@@ -1,5 +1,5 @@
 ---
-title: "Final Year BSc thesis:"
+title: "Research Article:"
 subtitle: "Atomic density distributions in proteins: structural and functional implications"
 
 author: 
@@ -10,9 +10,6 @@ author:
 
 code-annotations: true
 
-#format:
-#  docx:
-#    reference-doc: custom-reference-doc.docx    
 format:
   pdf:
     toc: true
@@ -32,7 +29,7 @@ bibliography: references.bib
 
 #### Section 1: Scaling Distributions
 
-Atomic density distributions are stored in different directories based on radius and density calculation approaches. Atom count and atomic weight approaches are scaled separately to histograms with same bins and bin limits. We procceed to scatter-plots visualization and analysis with only one computational approach at a time and with all the different radius.
+Atomic density distributions are stored in different directories based on radius and density calculation approaches. Atom count and atomic weight approaches are scaled separately to histograms with same bins and bin limits. We procceed to scatter-plots visualization and analysis with only one density calculation approach at a time and with all the different radius.
 
 In the following chunk optimal bins from all distributions are computed with the Freedman-Diaconis (FD) rule. Minimum & maximum values from all distributions (combined for all radius) are computed too.
 
@@ -104,7 +101,7 @@ bin_width = ( (max_density - min_density ) / bins )
 breaks = seq( min_density , max_density , by=bin_width)
 
 
-write.table(breaks, file="breaks")
+write.table(breaks, file="breaks_atom_weight")
 
 
 rm(file,dist_min,min_values,
@@ -177,37 +174,32 @@ for (i in 1:bins){
 colnames(raw_data) = columns
 
 
-setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/7A")
-#setwd("~/project/ptixiaki/testing/")
-write.table(raw_data , file="raw_data_7A")
+setwd("~/project/ptixiaki/distributions_analysis/R_pipeline/6A")
+write.table(raw_data , file="raw_data_6A")
 
 
 rm(columns,i)
 
 ```
 
-Now scale distributions in 6A radius from cluster 4 and 6 with atom count
+Scale distributions in 6A radius from clusters 4 and 6 with atom count density approach and create histogram bin widths
 
 ```{r}
 
 
 cluster6_df = read.csv("cluster_6_df")
 cluster4_df = read.csv("cluster_4_df")
-cluster3_df = read.csv("cluster_3_df")
 
 cluster6_ids = cluster6_df$id
 cluster6_files <- paste0(cluster6_ids, ".pdb.water")
 cluster4_ids = cluster4_df$id
 cluster4_files <- paste0(cluster4_ids, ".pdb.water")
-cluster3_ids = cluster3_df$id
-cluster3_files <- paste0(cluster3_ids, ".pdb.water")
 
 
 #solvate_files <- list.files("./solvate_files/")
 
 #file.copy(file.path("./solvate_files/", cluster6_files), "cluster_6_files")
 #file.copy(file.path("./solvate_files/", cluster4_files), "cluster_4_files")
-#file.copy(file.path("./solvate_files/", cluster3_files), "cluster_3_files")
 
 
 cluster_4_6_dist = "~/project/ptixiaki/distributions_analysis/R_pipeline/cluster_4_6_dist"
@@ -267,6 +259,8 @@ rm(file,dist_min,min_values,
 
 
 ```
+
+Scale distributions in 6A radius from clusters 4 and 6 with atom count density approach and create histogram bin frequencies
 
 ```{r}
 
@@ -388,7 +382,7 @@ dim(raw_data_reduced)
 
 ```
 
-Raw data for analysis is ready. We can now create a scatter plot to see how data is distributed.
+Scatter plots of the raw data
 
 ```{r , warning=FALSE , eval=FALSE}
 
@@ -487,7 +481,7 @@ g = ggplot(melt_raw_data, aes(x=as.numeric(variable) ) )+
           #title = "a")
   
 
-postscript("scatter_final_7A.eps", width=5, height=5, horizontal=FALSE, onefile=FALSE, paper="special")
+postscript("scatter_final_6A.eps", width=5, height=5, horizontal=FALSE, onefile=FALSE, paper="special")
 g
 dev.off()
 
@@ -496,7 +490,7 @@ rm(i, outliers_data, outliers, outliers_int_id)
 
 ```
 
-Plot the mean value of the raw data scatter plot with 2 outlier distributions
+Plot histogram of the average raw data distribution with 2 outlier distributions
 
 ```{r}
 
@@ -560,6 +554,7 @@ scatter_breaks = 10*( round( c(breaks[11], breaks[21], breaks[31],
 
 # we may want to plot some protein-outliers, separately with line plots
 outliers = c("1j0p","3nio")
+outliers = c("1j0p","3ir3")
 
 # identify rows in which there is outliers data
 outliers_int_id = which(melt_raw_data$PDB_id %in% outliers)
@@ -569,24 +564,29 @@ outliers_data = melt_raw_data[outliers_int_id,]
 
 g = ggplot(melt_raw_data)+
     geom_line( aes(x=as.numeric(variable), y=value, color=PDB_id), 
-                   data=outliers_data , size=0.3)+
+                   data=outliers_data , size=1.2)+
   
-    geom_line( aes(x=as.numeric(variable), y=mean), color="black", size=0.5 )+
+    #geom_line( aes(x=as.numeric(variable), y=mean), color="black", size=1.2 )+
   
     stat_summary(fun="mean", geom="line", aes(x=as.numeric(variable), y=value), 
-                 size=0.5)+
+                 size=1.2)+
   
     theme_classic()+
   
     theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
     theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+  
+    theme(legend.text = element_text(size = 14))+
+    theme(legend.title = element_text(size = 14))+
+  
+    theme(legend.key.height = unit(0.8, "cm"))+
 
     scale_x_continuous( breaks=scatter_bins, 
                         labels=scatter_breaks )+
     
     scale_y_continuous( breaks=c(0.00, 0.04, 
-                                 0.08, 0.12, 0.16, 0.20, 0.24),
-                        limits=c(0,0.24)) +
+                                 0.08, 0.12, 0.16),
+                        limits=c(0,0.16)) +
 
     labs( y="frequency of spheres" , 
           x=expression(paste("Daltons per 10", 
@@ -601,6 +601,8 @@ dev.off()
 ```
 
 #### Section 3: Distance matrix creation
+
+Create the distance matrices for each radius using euclidean distance metric
 
 ```{python , eval=FALSE}
 
@@ -617,10 +619,12 @@ numpy_file = np.loadtxt("./7A/raw_data_removal_100_outliers_7A",
                         usecols=sorted(set(range(2,102))), 
                         skiprows=1 )
 
+
 # for initial raw data
 #numpy_file = np.loadtxt("./7A/raw_data_7A",
 #                        usecols=sorted(set(range(2,102))),
 #                        skiprows=1 )
+
 
 # export to file
 with open('distance.matrix.removal.100.outliers.7A', 'w') as output:
@@ -635,7 +639,7 @@ with open('distance.matrix.removal.100.outliers.7A', 'w') as output:
 
 ```
 
-Identification of outliers by summing each row from the distance matrix
+Identification of outliers by summing each row from the distance matrix and ordering results
 
 ```{r , eval=FALSE}
 
@@ -679,43 +683,6 @@ metrics1 <- calculate_metrics(distance_matrix)
 # 7A  total_sum: 44000000  average: 0.0973  max_dist: 0.468  sd: 0.0552
 # 6A  total_sum: 31000000  average: 0.0685  max_dist: 0.354  sd: 0.035
 # 5A  total_sum: 23166256  average: 0.0513  max_dist: 0.288  sd: 0.0209
-
-
-# plot
-sums = rowSums(distance_matrix, dims=1)
-means <- apply(distance_matrix, 1, mean)
-sds <- apply(distance_matrix, 1, sd)
-medians <- apply(distance_matrix, 1, median)
-maxs <- apply(distance_matrix, 1, max)
-
-data = data.frame(sums, means, sds, medians, maxs)
-write.table(data, file = "rowsums_df_7A")
-
-df_5A = read.table("5A/rowsums_df_5A")
-df_6A = read.table("6A/rowsums_df_6A")
-df_7A = read.table("7A/rowsums_df_7A")
-
-df_5A$radius = "5"
-df_6A$radius = "6"
-df_7A$radius = "7"
-
-df = rbind(df_5A, df_6A, df_7A)
-
-my_comparisons = list( c("5", "6"), c("6","7"), c("5", "7") )
-
-library(ggplot2)
-library(ggpubr)
-
-ggplot(df, aes(x=as.numeric(means), y=as.factor(radius), 
-                      color=as.factor(radius)))+
-  
-  geom_jitter()+
-  geom_violin(trim=FALSE)+
-  geom_boxplot(width = 0.1)+
-  scale_y_discrete(limits=c("5", "6", "7"))+
-  labs(x="Mean of distances", 
-       y = "Radius", color="Radius")+
-  stat_compare_means(label = "p.signif" , comparisons = my_comparisons)
 
 
 ```
@@ -901,7 +868,7 @@ names = df[,1]
 df = df[,-1]
 rownames(df) = names
 
-df = df[, colSums(df) != 0]
+#df = df[, colSums(df) != 0]
 #df = scale(df)
 
 
@@ -1028,7 +995,9 @@ pca3d <- data.frame("PC1" = pca$x[,1],
 
 
 pca3d$label = ""
-pca3d[ which(rownames(df) == "3nio") , ]$label = "3nio"
+#pca3d[ which(rownames(df) == "3nio") , ]$label = "3nio"
+pca3d[ which(rownames(df) == "3ir3") , ]$label = "3ir3"
+
 pca3d[ which(rownames(df) == "1j0p") , ]$label = "1j0p"
 
 
@@ -1037,9 +1006,15 @@ g = ggplot( pca3d, aes(x= PC1 , y= PC2) )+
   geom_bin2d(bins = 70) +
   scale_fill_continuous(type = "viridis")+
   guides(color = FALSE)+
-  geom_text(aes(label = label), color = "black", size = 3, vjust = -1, hjust = +0.5)+
+  geom_text(aes(label = label), color = "black", size = 5, vjust = -0.8, hjust = +0.5)+
   theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
   theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+  
+  scale_x_continuous( breaks=c(-0.2, -0.1, +0.0, +0.1, +0.2),
+                      limits=c(-0.2, +0.2) )+
+    
+  scale_y_continuous( breaks=c(-0.10, -0.05, 0.0, +0.05, +0.10, +0.15),
+                      limits=c(-0.10, +0.15)) +
 
 postscript("pc1_pc2_outliers.eps", width=5, height=5, horizontal=FALSE, onefile=FALSE, paper="special")
 g
@@ -1047,9 +1022,46 @@ dev.off()
 
 
 
-#plot3d(pca3d[,1:3], 
-#       size=5)
-#rgl.postscript("my_3d_plot.eps", fmt = "eps")
+g = ggplot( pca3d, aes(x= PC1 , y= PC3) )+
+  theme_classic()+
+  geom_bin2d(bins = 70) +
+  scale_fill_continuous(type = "viridis")+
+  guides(color = FALSE)+
+  geom_text(aes(label = label), color = "black", 
+            size = 5, vjust = +1.4, hjust = +0.7)+
+  theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+  theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+  
+  scale_x_continuous( breaks=c(-0.2, -0.1, +0.0, +0.1, +0.2),
+                      limits=c(-0.2, +0.2) )+
+  scale_y_continuous( breaks=c(-0.08, -0.04, +0.0, +0.04, +0.08),
+                      limits=c(-0.08, +0.08) )
+
+postscript("pc1_pc3_outliers.eps", width=5, height=5, horizontal=FALSE, onefile=FALSE, paper="special")
+g
+dev.off()
+
+
+
+
+g = ggplot( pca3d, aes(x= PC3 , y= PC2) )+
+  theme_classic()+
+  geom_bin2d(bins = 70) +
+  scale_fill_continuous(type = "viridis")+
+  guides(color = FALSE)+
+  geom_text(aes(label = label), color = "black", 
+            size = 5, vjust = -0.8, hjust = +0.5)+
+  theme(axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))+
+  theme(axis.text.y=element_text(size=14),axis.title.y=element_text(size=16))+
+  
+  scale_y_continuous( breaks=c(-0.10, -0.05, 0.0, +0.05, +0.10, +0.15),
+                      limits=c(-0.10, +0.15))+
+  scale_x_continuous( breaks=c(-0.08, -0.04, +0.0, +0.04, +0.08),
+                      limits=c(-0.08, +0.08) )
+  
+postscript("pc2_pc3_outliers.eps", width=5, height=5, horizontal=FALSE, onefile=FALSE, paper="special")
+g
+dev.off()
 
 
 ```
@@ -1073,7 +1085,6 @@ clust = hdbscan( df , minPts = 6)
 clust
 hdbscan_df = data.frame("PDBs" = names, "cluster" = clust$cluster )
 
-write.table( hdbscan_df , file="./hdbscan_clusters_df6")
 
 #which(hdbscan_df$cluster == 1)
 #hdbscan_df[6357,]
@@ -1084,7 +1095,7 @@ write.table( hdbscan_df , file="./hdbscan_clusters_df6")
 
 #### Section 7: Clusters comparison
 
-Graphical comparison
+Raw datacomparison of clusters of interest
 
 ```{r}
 
@@ -1157,7 +1168,7 @@ g = ggplot(melt_raw_data, aes(x=as.numeric(variable) ) )+
           ring(A)^3 ) ) )
 
 
-ggsave('tt.png', 
+ggsave('scatter_plot_clusters_4_6.png', 
        #bg='transparent',
        plot = last_plot(),
        device = "png",
@@ -1166,7 +1177,7 @@ ggsave('tt.png',
 
 ```
 
-Comparison with Z scores
+Comparison of clusters with Z scores
 
 ```{r}
 
@@ -1338,9 +1349,6 @@ Clusters = c(hierarchical_df[,1])
 
 cluster4 = which( hierarchical_df$clusters == 4)
 cluster6 = which( hierarchical_df$clusters == 6)
-cluster8 = which( hierarchical_df$clusters == 8)
-cluster11 = which( hierarchical_df$clusters == 11)
-cluster3 = which( hierarchical_df$clusters == 3)
 
 cluster4_df = data.frame("id" = PDBs[cluster4], "cluster" = 4)
 write.csv(cluster4_df, "cluster_4_df", row.names = FALSE)
@@ -1348,18 +1356,9 @@ write.csv(cluster4_df, "cluster_4_df", row.names = FALSE)
 cluster6_df = data.frame("id" = PDBs[cluster6], "cluster" = 6)
 write.csv(cluster6_df, "cluster_6_df", row.names = FALSE)
 
-cluster8_df = data.frame("id" = PDBs[cluster8], "cluster" = 8)
-write.csv(cluster8_df, "cluster_8_df", row.names = FALSE)
 
-cluster11_df = data.frame("id" = PDBs[cluster11], "cluster" = 11)
-write.csv(cluster11_df, "cluster_11_df", row.names = FALSE)
-
-cluster3_df = data.frame("id" = PDBs[cluster3], "cluster" = 3)
-write.csv(cluster3_df, "cluster_3_df", row.names = FALSE)
-
-
-cluster_df = rbind(cluster4_df, cluster6_df, cluster8_df, cluster11_df)
-write.csv(cluster_df, "cluster_4_6_8_11_df", row.names = FALSE)
+cluster_df = rbind(cluster4_df, cluster6_df)
+write.csv(cluster_df, "cluster_4_6_df", row.names = FALSE)
 
 cluster_df = data.frame("id" = PDBs, "cluster" = Clusters)
 write.csv(cluster_df, "cluster_all_df", row.names = FALSE)
@@ -1496,47 +1495,9 @@ aminoacid_dictionary = {
 
 }
 
-directory = '/home/touliopoulos/project/ptixiaki/filter_pdb_format_obabel/6_MUTATE_FORMATS'
-
-with open('sequences.fasta', 'w') as output:
-    with redirect_stdout(output):
-        df = pd.read_csv("cluster_all_df")
-        for index, row in df.iterrows():
-            #if row["cluster"] == 11:
-            if row["id"] in unique_pdbs:
-                pdb_id = row["id"]
-                print(">" + pdb_id + "_" + str(row["cluster"]) )
-                
-                file_path = (directory + '/' + pdb_id + ".pdb")
-                fasta_sequence = ""
-                numeric_id_list = []
-                one_letter_list = []
-        
-                with open(file_path, "r" ) as file:
-                    try:
-                        for line in file:
-                            if line[17:20] in list(aminoacid_dictionary.keys()) and  line[77] != "H":
-                                three_letter = line[17:20]
-                                one_letter = aminoacid_dictionary[three_letter]
-                                one_letter_list.append(one_letter)
-                    
-                                numeric_id = line[22:27]
-                                numeric_id = numeric_id.replace(" ", "")
-                                numeric_id_list.append(numeric_id)
-                    except:
-                        print("error in",pdb_id)
-    
-                    for numerid_id in range(len(numeric_id_list)-1):
-                        if numeric_id_list[numerid_id] != numeric_id_list[numerid_id+1]:
-                            fasta_sequence = fasta_sequence + one_letter_list[numerid_id]
-                    fasta_sequence = fasta_sequence + one_letter_list[numerid_id+1]
-                    print(fasta_sequence)
-
-
-
-
 
 directory = '/home/touliopoulos/project/ptixiaki/filter_pdb_format_obabel/1_AMINOACID_CUTOFF/PDB_FORMATS/'
+
 with open('sequences2.fasta', 'w') as output:
     with redirect_stdout(output):
         df = pd.read_csv("cluster_all_df")
@@ -2020,6 +1981,14 @@ median(extra_small_proteins$std_density)
 
 
 
+sd(extra_large_proteins$median_density)
+sd(large_proteins$median_density)
+sd(medium_proteins$median_density)
+sd(small_proteins$median_density)
+sd(extra_small_proteins$median_density)
+
+
+
 ```
 
 #### Section 11: Secondary structure
@@ -2200,6 +2169,7 @@ cluster4 = PDBs[which(hierarchical_df$clusters == 4)]
 cluster6 = PDBs[which(hierarchical_df$clusters == 6)]
 
 df = read.table("keywords_4_6_df.csv", sep=",", header=T)
+df = read.table("keywords_4_6_new_space_df.csv", sep=",", header=T)
 
 cluster4_df = subset(df, ID %in% cluster4)
 cluster6_df = subset(df, ID %in% cluster6)
@@ -2208,6 +2178,7 @@ cluster4_df$cluster = "4"
 cluster6_df$cluster = "6"
 
 df = rbind(cluster4_df, cluster6_df)
+
 
 # 1. Calculate percentages for each column within each cluster
 percentage_df <- df %>%
@@ -2245,8 +2216,6 @@ columns_to_sum <- grep("CYTOCHROME", names(df), value = TRUE)
 
 columns_to_sum <- grep("COILED", names(df), value = TRUE)
 
-columns_to_sum <- grep("COILEDCOIL", names(df), value = TRUE)
-
 
 # Is 5mc9 a coiled-coil structure?
 rows_with_4 <- which(rowSums(cluster4_df[, columns_to_sum, drop = FALSE] == 1) > 0)
@@ -2260,7 +2229,6 @@ rows_with_6 = unique(rows_with_6)
 cluster6_df$ID[rows_with_6]
 any(duplicated(cluster6_df$ID[rows_with_6]))
 length(cluster6_df$ID[rows_with_6])
-
 
 ```
 

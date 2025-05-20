@@ -3,7 +3,7 @@ import sys
 
 
 """
-for file in ./1_AMINOACID_CUTOFF/PDB_FORMATS/* ; do python3 extract_keywords.py ''$file''  >>  keywords_1_4  ;  done
+for file in ./1_AMINOACID_CUTOFF/PDB_FORMATS/* ; do python3 extract_keywords.py ''$file''  >>  keywords_4_6  ;  done
 """
 
 
@@ -21,7 +21,7 @@ def extract_keywords(pdb_file, hierarchical_clusters_file):
             id_str = parts[0].strip('"')
             cluster_id = int(parts[1])
             
-            if cluster_id in (1, 4):
+            if cluster_id in (4, 6):
                 selected_ids.append(id_str)
 
     keywords = []
@@ -39,7 +39,9 @@ def extract_keywords(pdb_file, hierarchical_clusters_file):
                             finally:
                                 pass
                         
-        remove_chars = "\"()+!@?.:\{\}[]|`#$%^&*~,-;'/\\"
+        #remove_chars = "\"()+!@?.:\{\}[]|`#$%^&*~,-;'/\\"
+        remove_chars = " \"()+!@?.:\{\}[]|`#$%^&*~,-;'/\\"
+
         translation_table = str.maketrans('', '', remove_chars)
         cleaned_list = [s.translate(translation_table) for s in keywords]
 

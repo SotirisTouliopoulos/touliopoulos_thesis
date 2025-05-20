@@ -35,6 +35,7 @@ def median_bfactor(pdb_file):
     b_factors = np.array(b_factors)
     median_bfactor = np.median(b_factors)
     
+    print(b_factors)
     return round(median_bfactor, 4)
     
 
@@ -47,10 +48,12 @@ def total_water_mass(pdb_file):
     total_waters = 0
 
     for model in structure:
+        print(model)
         for chain in model:
             for residue in chain:
                 # Check if it's a water molecule (usually residue name 'HOH')
                 if residue.get_resname() == 'HOH':
+                    print(residue.get_resname())
                     total_waters += 1
 
     total_mass = total_waters * water_mass
